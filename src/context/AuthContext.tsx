@@ -1,5 +1,4 @@
 
-
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import type { User } from '../types';
 import { MOCK_USERS } from '../services/mockData';
@@ -18,8 +17,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (identifier: string, pass: string): Promise<User | null> => {
     // In a real app, this would be an API call
     console.log("Attempting login for:", identifier);
+    const normalizedIdentifier = identifier.replace(/\D/g, '');
+
     const foundUser = MOCK_USERS.find(
-      u => (u.cpf === identifier || u.phone === identifier)
+      u => (u.cpf.replace(/\D/g, '') === normalizedIdentifier || u.phone.replace(/\D/g, '') === normalizedIdentifier)
     );
     
     // Mock password check

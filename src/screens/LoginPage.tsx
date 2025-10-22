@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
+import { formatCPF } from '../utils/cpfValidator';
 
 const LoginPage: React.FC = () => {
     const [identifier, setIdentifier] = useState('');
@@ -62,9 +63,10 @@ const LoginPage: React.FC = () => {
                                 id="identifier"
                                 type="text"
                                 value={identifier}
-                                onChange={(e) => setIdentifier(e.target.value)}
+                                onChange={(e) => setIdentifier(formatCPF(e.target.value))}
+                                maxLength={14}
                                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-ds-dourado focus:border-ds-dourado"
-                                placeholder="Seu CPF ou telefone"
+                                placeholder="Digite seu CPF ou telefone"
                                 required
                             />
                         </div>
