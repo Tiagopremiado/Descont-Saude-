@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 
 const LoginPage: React.FC = () => {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [isForgotPassModalOpen, setForgotPassModalOpen] = useState(false);
     const { login } = useAuth();
+
+    useEffect(() => {
+        const rememberedIdentifier = localStorage.getItem('rememberedIdentifier');
+        if (rememberedIdentifier) {
+            setIdentifier(rememberedIdentifier);
+            setRememberMe(true);
+        }
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -16,7 +25,13 @@ const LoginPage: React.FC = () => {
         setLoading(true);
         try {
             const user = await login(identifier, password);
-            if (!user) {
+            if (user) {
+                if (rememberMe) {
+                    localStorage.setItem('rememberedIdentifier', identifier);
+                } else {
+                    localStorage.removeItem('rememberedIdentifier');
+                }
+            } else {
                 setError('CPF/Telefone ou senha inválidos.');
             }
         } catch (err) {
@@ -68,6 +83,28 @@ const LoginPage: React.FC = () => {
                             />
                         </div>
                         
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <input
+                                    id="remember-me"
+                                    name="remember-me"
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="h-4 w-4 text-ds-vinho focus:ring-ds-dourado border-gray-300 rounded"
+                                />
+                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                                    Lembrar-me
+                                </label>
+                            </div>
+
+                            <div className="text-sm">
+                                <button type="button" onClick={() => setForgotPassModalOpen(true)} className="font-medium text-ds-vinho hover:underline">
+                                    Esqueceu a senha?
+                                </button>
+                            </div>
+                        </div>
+
                         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
                         <div>
@@ -77,12 +114,6 @@ const LoginPage: React.FC = () => {
                                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-sm text-lg font-bold text-ds-vinho bg-ds-dourado hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ds-dourado disabled:bg-opacity-50 transition-all duration-200 ease-in-out hover:scale-105"
                             >
                                 {loading ? 'Entrando...' : 'Entrar'}
-                            </button>
-                        </div>
-
-                        <div className="text-center">
-                            <button type="button" onClick={() => setForgotPassModalOpen(true)} className="text-sm text-ds-vinho hover:underline">
-                                Esqueceu a senha?
                             </button>
                         </div>
                     </form>
