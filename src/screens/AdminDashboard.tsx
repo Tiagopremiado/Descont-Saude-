@@ -5,7 +5,7 @@ import PaymentReports from '../components/admin/PaymentReports';
 import DoctorManagement from '../components/admin/DoctorManagement';
 import GenerationResultModal from '../components/admin/GenerationResultModal';
 import { getClients } from '../services/apiService';
-import { MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, setBackupData } from '../services/mockData';
+import { MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, setBackupData, resetData } from '../services/mockData';
 import type { Client } from '../types';
 
 type AdminTab = 'clients' | 'payments' | 'doctors';
@@ -20,6 +20,12 @@ const UploadIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
         <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 9.414V13H5.5z" />
         <path d="M9 13h2v5H9v-5z" />
+    </svg>
+);
+
+const ResetIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" />
     </svg>
 );
 
@@ -84,6 +90,14 @@ const AdminDashboard: React.FC = () => {
     const handleRestoreClick = () => {
         fileInputRef.current?.click();
     };
+    
+    const handleResetData = () => {
+        if (window.confirm("Você tem certeza que deseja resetar todos os dados para o padrão? O backup salvo será perdido. Esta ação é irreversível.")) {
+            resetData();
+            alert("Dados resetados com sucesso! A página será recarregada.");
+            window.location.reload();
+        }
+    };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -102,6 +116,8 @@ const AdminDashboard: React.FC = () => {
                     setBackupData(backupData);
                     alert("Backup restaurado com sucesso! A página será recarregada para aplicar as mudanças.");
                     window.location.reload();
+                } else {
+                    alert("Restauração de backup cancelada pelo usuário.");
                 }
             } catch (error) {
                 console.error("Error parsing backup file:", error);
@@ -173,14 +189,21 @@ const AdminDashboard: React.FC = () => {
                                 className="flex items-center bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600 transition-colors text-sm"
                             >
                                 <DownloadIcon />
-                                Download Backup
+                                Backup
                             </button>
                             <button
                                 onClick={handleRestoreClick}
                                 className="flex items-center bg-green-500 text-white font-bold py-2 px-4 rounded-full hover:bg-green-600 transition-colors text-sm"
                             >
                                 <UploadIcon />
-                                Restaurar Backup
+                                Restaurar
+                            </button>
+                            <button
+                                onClick={handleResetData}
+                                className="flex items-center bg-red-500 text-white font-bold py-2 px-4 rounded-full hover:bg-red-600 transition-colors text-sm"
+                            >
+                                <ResetIcon />
+                                Resetar
                             </button>
                             <input
                                 type="file"
