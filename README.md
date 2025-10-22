@@ -1,20 +1,60 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Descont'Saúde PWA
 
-# Run and deploy your AI Studio app
+Este é um sistema PWA (Progressive Web App) para a Descont'Saúde, projetado para gerenciar clientes, dependentes e pagamentos, além de fornecer um portal dedicado para os clientes.
 
-This contains everything you need to run your app locally.
+## Tecnologias Utilizadas
 
-View your app in AI Studio: https://ai.studio/apps/drive/1xBtOzcomnkCiH8QOsj2JbKDVrwCqQ1xO
+-   React
+-   TypeScript
+-   Vite
+-   Tailwind CSS
 
-## Run Locally
+## Como Executar o Projeto
 
-**Prerequisites:**  Node.js
+### Pré-requisitos
 
+-   Node.js (versão 18 ou superior)
+-   npm, yarn ou pnpm
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Instalação
+
+1.  Clone o repositório:
+    ```bash
+    git clone <URL_DO_SEU_REPOSITORIO>
+    cd <NOME_DA_PASTA>
+    ```
+
+2.  Instale as dependências:
+    ```bash
+    npm install
+    ```
+
+### Rodando em Desenvolvimento
+
+Para iniciar o servidor de desenvolvimento, execute:
+
+```bash
+npm run dev
+```
+
+O aplicativo estará disponível em `http://localhost:5173` (ou outra porta, se a 5173 estiver em uso).
+
+## Build para Produção
+
+Para criar a versão de produção do aplicativo, execute:
+
+```bash
+npm run build
+```
+
+Os arquivos otimizados serão gerados no diretório `dist/`.
+
+## Deploy na Vercel
+
+1.  Faça o push do seu código para um repositório no GitHub.
+2.  Acesse sua conta na [Vercel](https://vercel.com).
+3.  Clique em "Add New..." -> "Project".
+4.  Importe o repositório do GitHub.
+5.  A Vercel deve detectar automaticamente que é um projeto Vite e configurar os comandos de build e o diretório de saída corretamente.
+6.  Adicione as variáveis de ambiente necessárias (como `API_KEY`) nas configurações do projeto na Vercel.
+7.  Clique em "Deploy".
