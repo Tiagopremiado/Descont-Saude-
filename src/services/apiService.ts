@@ -235,6 +235,5 @@ export const getRatingsByClientId = async (clientId: string): Promise<Rating[]> 
 
 export const getServiceHistoryByClientId = async (clientId: string): Promise<ServiceHistoryItem[]> => {
   await apiDelay(500);
-  // FIX: This function was missing a return statement, causing a type error.
   return JSON.parse(JSON.stringify(MOCK_SERVICE_HISTORY.filter(sh => sh.clientId === clientId)));
 };
