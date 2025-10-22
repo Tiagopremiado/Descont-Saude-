@@ -85,16 +85,24 @@ const LoginPage: React.FC = () => {
                         
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
-                                <input
-                                    id="remember-me"
-                                    name="remember-me"
-                                    type="checkbox"
-                                    checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="h-4 w-4 text-ds-vinho focus:ring-ds-dourado border-gray-300 rounded"
-                                />
-                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                                    Lembrar-me
+                                 <button
+                                    type="button"
+                                    onClick={() => setRememberMe(!rememberMe)}
+                                    className={`${
+                                        rememberMe ? 'bg-ds-vinho' : 'bg-gray-200'
+                                    } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ds-dourado focus:ring-offset-2`}
+                                    role="switch"
+                                    aria-checked={rememberMe}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={`${
+                                            rememberMe ? 'translate-x-5' : 'translate-x-0'
+                                        } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                                    />
+                                </button>
+                                <label onClick={() => setRememberMe(!rememberMe)} className="ml-3 block text-sm text-gray-900 cursor-pointer">
+                                    Lembrar meu acesso
                                 </label>
                             </div>
 

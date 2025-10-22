@@ -52,6 +52,16 @@
         color: #6b7280; /* Tailwind's gray-500 */
         opacity: 1; /* Override Firefox's lower opacity */
       }
+
+      /* Subtle focus animation for form elements */
+      input, select, textarea {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+
+      input:focus, select:focus, textarea:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(208, 171, 106, 0.25); /* Subtle glow with brand color */
+      }
     </style>
 
     <!-- PDF Generation Libraries -->
