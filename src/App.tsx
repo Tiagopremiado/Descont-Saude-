@@ -1,8 +1,8 @@
 import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import LoginPage from '../screens/LoginPage';
-import AdminDashboard from '../screens/AdminDashboard';
-import ClientDashboard from '../screens/ClientDashboard';
+import LoginPage from './screens/LoginPage';
+import AdminDashboard from './screens/AdminDashboard';
+import ClientDashboard from './screens/ClientDashboard';
 
 const AppContent: React.FC = () => {
     const { user } = useAuth();
