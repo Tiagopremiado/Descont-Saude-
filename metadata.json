@@ -1,0 +1,5 @@
+{
+  "name": "Descont'Saúde PWA",
+  "description": "A web system for Descont'Saúde to manage clients, dependents, and payments, providing a dedicated portal for clients to access their information and services.",
+  "requestFramePermissions": []
+}

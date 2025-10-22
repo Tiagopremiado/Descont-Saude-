@@ -1,0 +1,15 @@
+{
+  "short_name": "Descont'Saúde",
+  "name": "Descont'Saúde PWA",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#750721",
+  "background_color": "#ffffff"
+}
