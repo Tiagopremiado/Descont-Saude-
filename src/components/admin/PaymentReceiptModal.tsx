@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Payment, Client } from '../../types';
 import Modal from '../common/Modal';
 
@@ -14,6 +14,15 @@ interface PaymentReceiptModalProps {
 
 const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClose, payment, client }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paidAmount, setPaidAmount] = useState(payment?.amount || 0);
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+
+  useEffect(() => {
+    if (payment) {
+      setPaidAmount(payment.amount);
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+    }
+  }, [payment]);
 
   if (!isOpen || !payment || !client) return null;
 
@@ -61,7 +70,8 @@ const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClo
     }
   };
   
-  const receiptId = `01-0${client.contractNumber.slice(-8)}`;
+  const cpfDigits = client.cpf.replace(/\D/g, '');
+  const receiptId = `01-00${cpfDigits.slice(-7)}`;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Gerar Comprovante de Pagamento">
@@ -73,9 +83,38 @@ const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClo
           </div>
         )}
 
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+            <div>
+                <label htmlFor="paidAmount" className="block text-sm font-medium text-gray-700">
+                    Valor Pago (edite se houver juros)
+                </label>
+                <input
+                    type="number"
+                    id="paidAmount"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-ds-dourado focus:border-ds-dourado"
+                />
+                <p className="text-xs text-gray-500 mt-1">Este valor será exibido no comprovante como "Valor Pago".</p>
+            </div>
+            <div>
+                <label htmlFor="paymentDate" className="block text-sm font-medium text-gray-700">
+                    Data do Pagamento
+                </label>
+                <input
+                    type="date"
+                    id="paymentDate"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-ds-dourado focus:border-ds-dourado"
+                />
+            </div>
+        </div>
+
+
         <div id="receipt-content" className="bg-white text-gray-800 font-sans">
           <div className="relative overflow-hidden">
-            <div className="bg-ds-vinho h-52 relative px-4 pt-4">
+            <div className="bg-ds-vinho h-60 relative px-4 pt-4">
                <div className="flex justify-between items-start">
                   <div className="bg-white text-black text-center font-bold p-2 rounded-xl shadow-md">
                     {receiptId}
@@ -92,7 +131,7 @@ const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClo
                   </div>
                 </div>
               <h1 className="text-white text-3xl font-bold tracking-wider text-center mt-2">COMPROVANTE DE PAGAMENTO</h1>
-              <div className="absolute top-32 left-1/2 -translate-x-1/2">
+              <div className="absolute top-40 left-1/2 -translate-x-1/2">
                 <svg viewBox="0 0 100 100" className="w-20 h-20 opacity-80">
                     <g>
                         <path d="M50 20 L80 50 L50 80 L20 50 Z" fill="#D0AB6A"/>
@@ -102,7 +141,7 @@ const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClo
               </div>
             </div>
 
-            <div className="p-6 -mt-16 relative">
+            <div className="p-6 pt-16 -mt-32 relative">
               <div className="bg-gray-50/90 backdrop-blur-sm p-6 rounded-2xl shadow-lg relative overflow-hidden border">
                 <div className="absolute top-0 right-0 w-16 h-16">
                   <div className="w-full h-full bg-green-500" style={{clipPath: 'polygon(100% 0, 0 0, 100% 100%)'}}></div>
@@ -119,15 +158,25 @@ const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClo
                         <span className="text-gray-600">Descrição</span>
                         <span className="font-semibold">Descont' Saúde</span>
                       </div>
+                       <div className="flex justify-between items-center border-b pb-2">
+                        <span className="text-gray-600">Valor da Fatura</span>
+                        <span className="font-semibold">R$ {payment.amount.toFixed(2)}</span>
+                      </div>
                       <div className="flex justify-between items-center pt-2">
-                        <span className="font-bold text-lg">Subtotal</span>
-                        <span className="font-bold text-lg text-ds-vinho">R$ {payment.amount.toFixed(2)}</span>
+                        <span className="font-bold text-lg">Valor Pago</span>
+                        <span className="font-bold text-lg text-ds-vinho">R$ {paidAmount.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-gray-600">Vencimento</p>
-                    <p className="font-bold text-3xl text-gray-800">{new Date(payment.dueDate).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</p>
+                  <div className="text-right space-y-4">
+                    <div>
+                        <p className="text-gray-600">Vencimento</p>
+                        <p className="font-bold text-3xl text-gray-800">{new Date(payment.dueDate).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</p>
+                    </div>
+                    <div>
+                        <p className="text-gray-600">Data do Pagamento</p>
+                        <p className="font-bold text-xl text-gray-800">{new Date(paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -135,7 +184,7 @@ const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClo
           </div>
         </div>
       </div>
-      <div className="flex justify-end space-x-3 pt-4 no-print">
+      <div className="flex justify-end space-x-3 pt-4">
         <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Fechar</button>
         <button type="button" onClick={() => handleAction('share')} className="bg-green-500 text-white font-bold py-2 px-4 rounded-full hover:bg-green-600">Compartilhar</button>
         <button type="button" onClick={() => handleAction('download')} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600">Baixar PDF</button>
