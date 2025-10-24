@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 
@@ -12,6 +13,12 @@ const Benefit: React.FC<{ icon: React.ReactNode; title: string; description: str
             <p className="text-sm text-white/80">{description}</p>
         </div>
     </div>
+);
+
+const WhatsAppIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241z"/>
+    </svg>
 );
 
 const LoginPage: React.FC = () => {
@@ -95,8 +102,8 @@ const LoginPage: React.FC = () => {
                 </div>
 
                 {/* Login Side */}
-                <div className="w-full lg:w-1/2 flex items-center justify-center p-4">
-                    <div className="w-full max-w-md">
+                <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-4">
+                    <main className="w-full max-w-md">
                         <div className="text-center mb-8">
                              <div className="inline-flex items-center justify-center h-16 w-16 bg-ds-vinho rounded-full shadow-md mb-4">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -140,10 +147,32 @@ const LoginPage: React.FC = () => {
                                     </button>
                                 </div>
                             </form>
+                             <div className="text-center text-sm mt-6">
+                                <Link to="/about" className="font-medium text-ds-vinho hover:underline">
+                                    Sobre a Descont'Saúde
+                                </Link>
+                            </div>
                         </div>
-                    </div>
+                    </main>
+                    <footer className="w-full text-center p-4 text-xs text-gray-400 mt-auto pt-8">
+                        © {new Date().getFullYear()} Descont'Saúde. Todos os direitos reservados.
+                    </footer>
                 </div>
             </div>
+
+             {/* Floating WhatsApp Button */}
+            <a
+                href="https://wa.me/5553991560861"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Fale conosco no WhatsApp"
+                className="fixed bottom-6 right-6 group bg-green-500 text-white p-3 rounded-full shadow-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 z-50 flex items-center gap-2"
+            >
+                <WhatsAppIcon />
+                <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap font-semibold pr-2">
+                    Fale Conosco
+                </span>
+            </a>
             
             <Modal isOpen={isForgotPassModalOpen} onClose={() => setForgotPassModalOpen(false)} title="Recuperar Senha">
                 <div className="space-y-4 text-center">

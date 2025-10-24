@@ -10,6 +10,13 @@ interface DependentsManagerProps {
   client: Client;
 }
 
+const ButtonSpinner = () => (
+    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+
 const DependentsManager: React.FC<DependentsManagerProps> = ({ client: initialClient }) => {
   const [client, setClient] = useState<Client>(initialClient);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -150,7 +157,6 @@ const DependentsManager: React.FC<DependentsManagerProps> = ({ client: initialCl
       {/* Confirmation Modal */}
       {dependentForConfirmation && (
         <Modal isOpen={isConfirmModalOpen} onClose={() => {}} title="Confirme os Dados do Dependente">
-            {isSaving ? <Spinner /> : (
             <div className="space-y-4">
                 <p className="text-gray-700">Por favor, verifique se as informações abaixo estão corretas antes de enviar a solicitação.</p>
                 <div className="bg-gray-50 p-4 rounded-lg space-y-2 border border-gray-200 text-gray-800">
@@ -160,11 +166,13 @@ const DependentsManager: React.FC<DependentsManagerProps> = ({ client: initialCl
                     <p><strong>Data de Nascimento:</strong> {new Date(dependentForConfirmation.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
-                    <button onClick={() => { setIsConfirmModalOpen(false); setIsFormModalOpen(true); }} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Voltar e Corrigir</button>
-                    <button onClick={handleConfirmAndSubmit} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90">Confirmar e Enviar</button>
+                    <button onClick={() => { setIsConfirmModalOpen(false); setIsFormModalOpen(true); }} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isSaving}>Voltar e Corrigir</button>
+                    <button onClick={handleConfirmAndSubmit} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75 disabled:cursor-not-allowed" disabled={isSaving}>
+                      {isSaving && <ButtonSpinner />}
+                      {isSaving ? 'Enviando...' : 'Confirmar e Enviar'}
+                    </button>
                 </div>
             </div>
-            )}
         </Modal>
       )}
     </>

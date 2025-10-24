@@ -14,9 +14,19 @@ interface ClientDetailModalProps {
   onShowGenerationResult: (client: Client) => void;
 }
 
+const ButtonSpinner = () => (
+    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+
+
 const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, client, onShowGenerationResult }) => {
   const [formData, setFormData] = useState<Client>(client);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isFormSaving, setIsFormSaving] = useState(false);
+  const [dependentActionLoading, setDependentActionLoading] = useState<string | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isAddDependentModalOpen, setIsAddDependentModalOpen] = useState(false);
 
@@ -38,56 +48,57 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
+    setIsFormSaving(true);
     try {
         await updateClient(client.id, formData);
         onClose();
     } catch (error) {
         console.error("Failed to update client", error);
     } finally {
-        setIsSaving(false);
+        setIsFormSaving(false);
     }
   }
   
   const handleDependentAction = async (action: 'approve' | 'reject' | 'inactivate' | 'reactivate', dependentId: string) => {
-      setIsSaving(true);
+      setDependentActionLoading(dependentId);
       let updatedClient: Client | null = null;
-      if (action === 'approve') {
-          updatedClient = await approveDependent(client.id, dependentId);
-      } else if (action === 'reject') {
-          updatedClient = await rejectDependent(client.id, dependentId);
-      } else if (action === 'inactivate') {
-          updatedClient = await inactivateDependent(client.id, dependentId);
-      } else if (action === 'reactivate') {
-          updatedClient = await reactivateDependent(client.id, dependentId);
-      }
+      try {
+        if (action === 'approve') {
+            updatedClient = await approveDependent(client.id, dependentId);
+        } else if (action === 'reject') {
+            updatedClient = await rejectDependent(client.id, dependentId);
+        } else if (action === 'inactivate') {
+            updatedClient = await inactivateDependent(client.id, dependentId);
+        } else if (action === 'reactivate') {
+            updatedClient = await reactivateDependent(client.id, dependentId);
+        }
 
-      if (updatedClient) {
-          setFormData(updatedClient);
+        if (updatedClient) {
+            setFormData(updatedClient);
+        }
+      } finally {
+        setDependentActionLoading(null);
       }
-      setIsSaving(false);
   }
 
   const handleAddDependent = async (dependentData: Omit<Dependent, 'id'>) => {
-    setIsSaving(true);
     const updatedClient = await addDependent(client.id, dependentData);
     if (updatedClient) {
         setFormData(updatedClient);
     }
-    setIsSaving(false);
   };
 
   const handleConfirmPasswordReset = async () => {
-    setIsSaving(true);
-    setIsResetPasswordModalOpen(false);
+    setIsResettingPassword(true);
     try {
         await resetClientPassword(client.id);
         alert("A senha do cliente foi redefinida para 'password123'.");
+        setIsResetPasswordModalOpen(false);
     } catch (error) {
         alert("Ocorreu um erro ao resetar a senha.");
         console.error("Password reset failed:", error);
     } finally {
-        setIsSaving(false);
+        setIsResettingPassword(false);
     }
   }
 
@@ -121,7 +132,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
 
 
   const labelClass = "block text-sm font-medium text-gray-700";
-  const inputClass = "mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado";
+  const inputClass = "mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado disabled:bg-gray-100";
   const selectClass = `${inputClass} bg-white`;
   
   const KeyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L4 19.743V16a1 1 0 00-2 0v4a1 1 0 001 1h4a1 1 0 000-2H5.257l5.9-5.9A6 6 0 1118 8zm-6-4a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd" /></svg>;
@@ -130,7 +141,6 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
   return (
     <>
     <Modal isOpen={isOpen} onClose={onClose} title={`Editar Cliente: ${client.name}`}>
-      {isSaving ? <Spinner /> : (
       <>
         <div className="p-4 -mt-6 -mx-6 mb-4 flex justify-start">
             <button
@@ -143,57 +153,59 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         </div>
         <form onSubmit={handleSave} className="space-y-4">
             {/* Personal Data Section */}
-            <div>
-                <h4 className="font-bold text-gray-700 mb-2">Dados Pessoais</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="edit-name" className={labelClass}>Nome Completo</label>
-                        <input type="text" name="name" id="edit-name" value={formData.name} onChange={handleChange} className={inputClass} required />
-                    </div>
-                    <div>
-                        <label htmlFor="edit-cpf" className={labelClass}>CPF</label>
-                        <input type="text" name="cpf" id="edit-cpf" value={formData.cpf} onChange={handleChange} className={inputClass} required maxLength={14} placeholder="000.000.000-00" />
-                    </div>
-                    <div>
-                        <label htmlFor="edit-email" className={labelClass}>Email</label>
-                        <input type="email" name="email" id="edit-email" value={formData.email} onChange={handleChange} className={inputClass} required />
-                    </div>
-                    <div>
-                        <label htmlFor="edit-phone" className={labelClass}>Telefone</label>
-                        <input type="tel" name="phone" id="edit-phone" value={formData.phone} onChange={handleChange} className={inputClass} required />
-                    </div>
-                </div>
-                <div className="mt-4">
-                    <label htmlFor="edit-address" className={labelClass}>Endereço</label>
-                    <input type="text" name="address" id="edit-address" value={formData.address} onChange={handleChange} className={inputClass} required />
-                </div>
-            </div>
-            <hr/>
-            {/* Plan and Status Section */}
-            <div>
-                <h4 className="font-bold text-gray-700 mb-2">Plano e Status</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label htmlFor="edit-plan" className={labelClass}>Plano</label>
-                        <input type="text" id="edit-plan" name="plan" value={formData.plan} onChange={handleChange} className={inputClass} required/>
-                    </div>
-                    <div>
-                        <label htmlFor="edit-monthlyFee" className={labelClass}>Mensalidade (R$)</label>
-                        <input type="number" step="0.01" id="edit-monthlyFee" name="monthlyFee" value={formData.monthlyFee} onChange={handleChange} className={inputClass} required />
-                    </div>
-                    <div>
-                        <label htmlFor="edit-status" className={`${labelClass} flex items-center`}>
-                            Status
-                            <span className="ml-2">{getClientStatusChip(formData.status)}</span>
-                        </label>
-                        <select id="edit-status" name="status" value={formData.status} onChange={handleChange} className={selectClass} required>
-                            <option value="active">Ativo</option>
-                            <option value="inactive">Inativo</option>
-                            <option value="pending">Pendente</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+            <fieldset disabled={isFormSaving || !!dependentActionLoading}>
+              <div>
+                  <h4 className="font-bold text-gray-700 mb-2">Dados Pessoais</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                          <label htmlFor="edit-name" className={labelClass}>Nome Completo</label>
+                          <input type="text" name="name" id="edit-name" value={formData.name} onChange={handleChange} className={inputClass} required />
+                      </div>
+                      <div>
+                          <label htmlFor="edit-cpf" className={labelClass}>CPF</label>
+                          <input type="text" name="cpf" id="edit-cpf" value={formData.cpf} onChange={handleChange} className={inputClass} required maxLength={14} placeholder="000.000.000-00" />
+                      </div>
+                      <div>
+                          <label htmlFor="edit-email" className={labelClass}>Email</label>
+                          <input type="email" name="email" id="edit-email" value={formData.email} onChange={handleChange} className={inputClass} required />
+                      </div>
+                      <div>
+                          <label htmlFor="edit-phone" className={labelClass}>Telefone</label>
+                          <input type="tel" name="phone" id="edit-phone" value={formData.phone} onChange={handleChange} className={inputClass} required />
+                      </div>
+                  </div>
+                  <div className="mt-4">
+                      <label htmlFor="edit-address" className={labelClass}>Endereço</label>
+                      <input type="text" name="address" id="edit-address" value={formData.address} onChange={handleChange} className={inputClass} required />
+                  </div>
+              </div>
+              <hr/>
+              {/* Plan and Status Section */}
+              <div>
+                  <h4 className="font-bold text-gray-700 mb-2">Plano e Status</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                          <label htmlFor="edit-plan" className={labelClass}>Plano</label>
+                          <input type="text" id="edit-plan" name="plan" value={formData.plan} onChange={handleChange} className={inputClass} required/>
+                      </div>
+                      <div>
+                          <label htmlFor="edit-monthlyFee" className={labelClass}>Mensalidade (R$)</label>
+                          <input type="number" step="0.01" id="edit-monthlyFee" name="monthlyFee" value={formData.monthlyFee} onChange={handleChange} className={inputClass} required />
+                      </div>
+                      <div>
+                          <label htmlFor="edit-status" className={`${labelClass} flex items-center`}>
+                              Status
+                              <span className="ml-2">{getClientStatusChip(formData.status)}</span>
+                          </label>
+                          <select id="edit-status" name="status" value={formData.status} onChange={handleChange} className={selectClass} required>
+                              <option value="active">Ativo</option>
+                              <option value="inactive">Inativo</option>
+                              <option value="pending">Pendente</option>
+                          </select>
+                      </div>
+                  </div>
+              </div>
+            </fieldset>
             <hr/>
             {/* Login Section */}
             <div>
@@ -233,16 +245,17 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     {getDependentStatusChip(dep.status)}
-                                    {dep.status === 'pending' && (
+                                    {dependentActionLoading === dep.id && <div className="w-5 h-5"><Spinner /></div>}
+                                    {dep.status === 'pending' && dependentActionLoading !== dep.id && (
                                         <>
                                             <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-green-500 text-white font-bold py-1 px-2 rounded-full hover:bg-green-600">Aprovar</button>
                                             <button type="button" onClick={() => handleDependentAction('reject', dep.id)} className="text-xs bg-red-500 text-white font-bold py-1 px-2 rounded-full hover:bg-red-600">Rejeitar</button>
                                         </>
                                     )}
-                                    {dep.status === 'active' && (
+                                    {dep.status === 'active' && dependentActionLoading !== dep.id && (
                                         <button type="button" onClick={() => handleDependentAction('inactivate', dep.id)} className="text-xs bg-gray-500 text-white font-bold py-1 px-2 rounded-full hover:bg-gray-600">Inativar</button>
                                     )}
-                                    {dep.status === 'inactive' && (
+                                    {dep.status === 'inactive' && dependentActionLoading !== dep.id && (
                                         <button type="button" onClick={() => handleDependentAction('reactivate', dep.id)} className="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded-full hover:bg-blue-600">Reativar</button>
                                     )}
                                 </div>
@@ -252,12 +265,14 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                 ) : <p className="text-gray-500">Nenhum dependente cadastrado.</p>}
             </div>
             <div className="flex justify-end space-x-3 pt-4 border-t mt-4">
-                <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Cancelar</button>
-                <button type="submit" className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90">{isSaving ? 'Salvando...' : 'Salvar Alterações'}</button>
+                <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isFormSaving}>Cancelar</button>
+                <button type="submit" className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75 disabled:cursor-not-allowed" disabled={isFormSaving || !!dependentActionLoading}>
+                    {isFormSaving && <ButtonSpinner />}
+                    {isFormSaving ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
             </div>
         </form>
       </>
-      )}
     </Modal>
     
     <Modal
@@ -270,14 +285,15 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
             Você tem certeza que deseja resetar a senha para o cliente <span className="font-bold">{client.name}</span>?
           </p>
           <p className="text-sm bg-yellow-100 text-yellow-800 p-3 rounded-md">
-            A nova senha será <code className="font-bold">'password123'</code>. Por favor, informe o cliente sobre a alteração.
+            A nova senha será os <code className="font-bold">4 últimos dígitos do CPF</code>. Por favor, informe o cliente sobre a alteração.
           </p>
           <div className="flex justify-end space-x-3 pt-2">
-            <button type="button" onClick={() => setIsResetPasswordModalOpen(false)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300">
+            <button type="button" onClick={() => setIsResetPasswordModalOpen(false)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isResettingPassword}>
               Cancelar
             </button>
-            <button type="button" onClick={handleConfirmPasswordReset} className="bg-red-600 text-white font-bold py-2 px-4 rounded-full hover:bg-red-700">
-              Sim, Resetar Senha
+            <button type="button" onClick={handleConfirmPasswordReset} className="bg-red-600 text-white font-bold py-2 px-4 rounded-full hover:bg-red-700 flex items-center disabled:opacity-75" disabled={isResettingPassword}>
+              {isResettingPassword && <ButtonSpinner />}
+              {isResettingPassword ? 'Resetando...' : 'Sim, Resetar Senha'}
             </button>
           </div>
         </div>

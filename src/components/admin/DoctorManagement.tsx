@@ -5,11 +5,19 @@ import Card from '../common/Card';
 import Spinner from '../common/Spinner';
 import Modal from '../common/Modal';
 
+const ButtonSpinner = () => (
+    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+
 const DoctorManagement: React.FC = () => {
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
     
     const [formState, setFormState] = useState<Omit<Doctor, 'id'>>({ name: '', specialty: '', address: '', city: '', phone: '', whatsapp: '' });
     const [suggestion, setSuggestion] = useState<Doctor | null>(null);
@@ -108,19 +116,24 @@ const DoctorManagement: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const dataToSubmit: any = { ...formState };
-        if (!dataToSubmit.whatsapp) {
-            delete dataToSubmit.whatsapp;
-        }
+        setIsSaving(true);
+        try {
+            const dataToSubmit: any = { ...formState };
+            if (!dataToSubmit.whatsapp) {
+                delete dataToSubmit.whatsapp;
+            }
 
-        if (selectedDoctor) {
-            await updateDoctor(selectedDoctor.id, { ...dataToSubmit, id: selectedDoctor.id });
-        } else {
-            await addDoctor(dataToSubmit);
+            if (selectedDoctor) {
+                await updateDoctor(selectedDoctor.id, { ...dataToSubmit, id: selectedDoctor.id });
+            } else {
+                await addDoctor(dataToSubmit);
+            }
+            
+            await fetchDoctors();
+            handleCloseModal();
+        } finally {
+            setIsSaving(false);
         }
-        
-        await fetchDoctors();
-        handleCloseModal();
     };
 
     const handleDelete = async (id: string) => {
@@ -268,45 +281,50 @@ const DoctorManagement: React.FC = () => {
 
             <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={selectedDoctor ? 'Editar Profissional' : 'Adicionar Profissional'}>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="name" className={labelClass}>Nome</label>
-                        <input type="text" id="name" name="name" value={formState.name} onChange={handleChange} required className={inputClass} autoComplete="off" />
-                         {suggestion && (
-                            <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded-md text-sm flex justify-between items-center">
-                                <span>Sugestão: <strong>{suggestion.name}</strong></span>
-                                <button type="button" onClick={handleApplySuggestion} className="ml-2 text-blue-600 font-semibold hover:underline text-xs bg-white px-2 py-1 rounded">Usar</button>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <label htmlFor="specialty" className={labelClass}>Especialidade</label>
-                        <input list="specialties-list" type="text" id="specialty" name="specialty" value={formState.specialty} onChange={handleChange} required className={inputClass} />
-                        <datalist id="specialties-list">
-                            {allSpecialties.map(spec => <option key={spec} value={spec} />)}
-                        </datalist>
-                    </div>
-                    <div>
-                        <label htmlFor="address" className={labelClass}>Endereço (Rua, Nº)</label>
-                        <input type="text" id="address" name="address" value={formState.address} onChange={handleChange} required className={inputClass} placeholder="Ex: Rua das Flores, 123" />
-                    </div>
-                     <div>
-                        <label htmlFor="city" className={labelClass}>Cidade</label>
-                        <input list="cities-list" type="text" id="city" name="city" value={formState.city} onChange={handleChange} required className={inputClass} />
-                         <datalist id="cities-list">
-                            {cities.map(city => <option key={city} value={city} />)}
-                        </datalist>
-                    </div>
-                    <div>
-                        <label htmlFor="phone" className={labelClass}>Telefone</label>
-                        <input type="text" id="phone" name="phone" value={formState.phone} onChange={handleChange} required className={inputClass} />
-                    </div>
-                    <div>
-                        <label htmlFor="whatsapp" className={labelClass}>WhatsApp (Opcional)</label>
-                        <input type="text" id="whatsapp" name="whatsapp" value={formState.whatsapp || ''} onChange={handleChange} className={inputClass} />
-                    </div>
+                    <fieldset disabled={isSaving}>
+                        <div>
+                            <label htmlFor="name" className={labelClass}>Nome</label>
+                            <input type="text" id="name" name="name" value={formState.name} onChange={handleChange} required className={inputClass} autoComplete="off" />
+                             {suggestion && (
+                                <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded-md text-sm flex justify-between items-center">
+                                    <span>Sugestão: <strong>{suggestion.name}</strong></span>
+                                    <button type="button" onClick={handleApplySuggestion} className="ml-2 text-blue-600 font-semibold hover:underline text-xs bg-white px-2 py-1 rounded">Usar</button>
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <label htmlFor="specialty" className={labelClass}>Especialidade</label>
+                            <input list="specialties-list" type="text" id="specialty" name="specialty" value={formState.specialty} onChange={handleChange} required className={inputClass} />
+                            <datalist id="specialties-list">
+                                {allSpecialties.map(spec => <option key={spec} value={spec} />)}
+                            </datalist>
+                        </div>
+                        <div>
+                            <label htmlFor="address" className={labelClass}>Endereço (Rua, Nº)</label>
+                            <input type="text" id="address" name="address" value={formState.address} onChange={handleChange} required className={inputClass} placeholder="Ex: Rua das Flores, 123" />
+                        </div>
+                         <div>
+                            <label htmlFor="city" className={labelClass}>Cidade</label>
+                            <input list="cities-list" type="text" id="city" name="city" value={formState.city} onChange={handleChange} required className={inputClass} />
+                             <datalist id="cities-list">
+                                {cities.map(city => <option key={city} value={city} />)}
+                            </datalist>
+                        </div>
+                        <div>
+                            <label htmlFor="phone" className={labelClass}>Telefone</label>
+                            <input type="text" id="phone" name="phone" value={formState.phone} onChange={handleChange} required className={inputClass} />
+                        </div>
+                        <div>
+                            <label htmlFor="whatsapp" className={labelClass}>WhatsApp (Opcional)</label>
+                            <input type="text" id="whatsapp" name="whatsapp" value={formState.whatsapp || ''} onChange={handleChange} className={inputClass} />
+                        </div>
+                    </fieldset>
                     <div className="flex justify-end space-x-3 pt-2">
-                        <button type="button" onClick={handleCloseModal} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Cancelar</button>
-                        <button type="submit" className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90">Salvar</button>
+                        <button type="button" onClick={handleCloseModal} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isSaving}>Cancelar</button>
+                        <button type="submit" className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75 disabled:cursor-not-allowed" disabled={isSaving}>
+                           {isSaving && <ButtonSpinner />}
+                           {isSaving ? 'Salvando...' : 'Salvar'}
+                        </button>
                     </div>
                 </form>
             </Modal>
