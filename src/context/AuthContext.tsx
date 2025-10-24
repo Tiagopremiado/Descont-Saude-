@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import type { User } from '../types';
 import { MOCK_USERS } from '../services/mockData';
@@ -15,18 +14,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
 
   const login = async (identifier: string, pass: string): Promise<User | null> => {
-    // In a real app, this would be an API call
     console.log("Attempting login for:", identifier);
-    const normalizedIdentifier = identifier.replace(/\D/g, '');
 
+    // Admin Login Path
+    if (identifier === '991560861') {
+      if (pass === '84081447') {
+        const adminUser = MOCK_USERS.find(u => u.role === 'admin');
+        if (adminUser) {
+          setUser(adminUser);
+          return adminUser;
+        }
+      }
+      return null;
+    }
+
+    // Client Login Path
+    const normalizedIdentifier = identifier.replace(/\D/g, '');
     const foundUser = MOCK_USERS.find(
-      u => (u.cpf.replace(/\D/g, '') === normalizedIdentifier || u.phone.replace(/\D/g, '') === normalizedIdentifier)
+      u => u.role === 'client' && (u.cpf.replace(/\D/g, '') === normalizedIdentifier || u.phone.replace(/\D/g, '') === normalizedIdentifier)
     );
     
-    // Mock password check
-    if (foundUser && pass === 'password123') {
-      setUser(foundUser);
-      return foundUser;
+    // NEW: Client password is the last 4 digits of their CPF
+    if (foundUser) {
+        const expectedPassword = foundUser.cpf.replace(/\D/g, '').slice(-4);
+        if (pass === expectedPassword) {
+            setUser(foundUser);
+            return foundUser;
+        }
     }
     
     return null;

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
-import { formatCPF } from '../utils/cpfValidator';
 
 const LoginPage: React.FC = () => {
     const [identifier, setIdentifier] = useState('');
@@ -33,7 +32,7 @@ const LoginPage: React.FC = () => {
                     localStorage.removeItem('rememberedIdentifier');
                 }
             } else {
-                setError('CPF/Telefone ou senha inválidos.');
+                setError('Login, CPF/Telefone ou senha inválidos.');
             }
         } catch (err) {
             setError('Ocorreu um erro. Tente novamente.');
@@ -57,16 +56,15 @@ const LoginPage: React.FC = () => {
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <div>
                             <label htmlFor="identifier" className="block text-sm font-medium text-gray-700">
-                                CPF ou Telefone
+                                Login, CPF ou Telefone
                             </label>
                             <input
                                 id="identifier"
                                 type="text"
                                 value={identifier}
-                                onChange={(e) => setIdentifier(formatCPF(e.target.value))}
-                                maxLength={14}
+                                onChange={(e) => setIdentifier(e.target.value)}
                                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-ds-dourado focus:border-ds-dourado"
-                                placeholder="Digite seu CPF ou telefone"
+                                placeholder="Digite seu login, CPF ou telefone"
                                 required
                             />
                         </div>
@@ -87,24 +85,14 @@ const LoginPage: React.FC = () => {
                         
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
-                                 <button
-                                    type="button"
-                                    onClick={() => setRememberMe(!rememberMe)}
-                                    className={`${
-                                        rememberMe ? 'bg-ds-vinho' : 'bg-gray-200'
-                                    } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ds-dourado focus:ring-offset-2`}
-                                    role="switch"
-                                    aria-checked={rememberMe}
-                                >
-                                    <span
-                                        aria-hidden="true"
-                                        className={`${
-                                            rememberMe ? 'translate-x-5' : 'translate-x-0'
-                                        } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                                 <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                        className="h-4 w-4 rounded text-ds-vinho focus:ring-ds-dourado"
                                     />
-                                </button>
-                                <label onClick={() => setRememberMe(!rememberMe)} className="ml-3 block text-sm text-gray-900 cursor-pointer">
-                                    Lembrar meu acesso
+                                    <span className="text-sm text-gray-700">Lembrar meu acesso</span>
                                 </label>
                             </div>
 
@@ -135,17 +123,17 @@ const LoginPage: React.FC = () => {
                 onClose={() => setForgotPassModalOpen(false)}
                 title="Recuperar Senha"
             >
-                <div className="space-y-4">
+                <div className="space-y-4 text-center">
                     <p className="text-gray-600">
-                        Insira seu CPF ou e-mail abaixo para receber as instruções de recuperação de senha.
+                        Para clientes, a senha padrão são os <strong className="text-ds-vinho">4 últimos dígitos do seu CPF</strong>.
                     </p>
-                    <input
-                        type="text"
-                        placeholder="Seu CPF ou e-mail"
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-ds-dourado focus:border-ds-dourado"
-                    />
-                    <button className="w-full bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors">
-                        Enviar
+                    <p className="text-sm text-gray-500">
+                        Para administradores ou em caso de problemas, por favor, entre em contato com o suporte.
+                    </p>
+                    <button 
+                        onClick={() => setForgotPassModalOpen(false)}
+                        className="w-full bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors">
+                        Entendi
                     </button>
                 </div>
             </Modal>

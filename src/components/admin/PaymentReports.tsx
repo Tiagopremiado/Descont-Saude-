@@ -111,7 +111,7 @@ const PaymentReports: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap">{getStatusChip(payment.status)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <button onClick={() => setSelectedPayment(payment)} className="text-ds-vinho hover:text-ds-dourado">
-                                                Ver Comprovante
+                                                Gerar Comprovante
                                             </button>
                                         </td>
                                     </tr>
