@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 interface HeaderProps {
     pendingCount?: number;
     onNotificationClick?: () => void;
+    onLogoutRequest: () => void; // Changed from direct logout
 }
 
-const Header: React.FC<HeaderProps> = ({ pendingCount = 0, onNotificationClick }) => {
-    const { user, logout } = useAuth();
+const Header: React.FC<HeaderProps> = ({ pendingCount = 0, onNotificationClick, onLogoutRequest }) => {
+    const { user } = useAuth();
 
     return (
         <header className="bg-ds-vinho text-white shadow-lg p-4 flex justify-between items-center">
@@ -30,7 +31,7 @@ const Header: React.FC<HeaderProps> = ({ pendingCount = 0, onNotificationClick }
                  )}
                 <span className="mr-4 hidden sm:inline">Olá, {user?.name.split(' ')[0]}</span>
                 <button
-                    onClick={logout}
+                    onClick={onLogoutRequest} // Use the new handler
                     className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors duration-200"
                 >
                     Sair

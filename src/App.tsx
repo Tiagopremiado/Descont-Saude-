@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DataProvider } from './context/DataContext'; // Import the new provider
 import LoginPage from './screens/LoginPage';
 import AdminDashboard from './screens/AdminDashboard';
 import ClientDashboard from './screens/ClientDashboard';
@@ -41,12 +42,14 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <HashRouter>
-                <div className="bg-gray-100 min-h-screen font-sans">
-                    <AppRoutes />
-                    <PWAInstallPrompt />
-                </div>
-            </HashRouter>
+            <DataProvider> {/* Wrap with DataProvider */}
+                <HashRouter>
+                    <div className="bg-gray-100 min-h-screen font-sans">
+                        <AppRoutes />
+                        <PWAInstallPrompt />
+                    </div>
+                </HashRouter>
+            </DataProvider>
         </AuthProvider>
     );
 };

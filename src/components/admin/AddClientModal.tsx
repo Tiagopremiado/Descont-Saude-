@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Client, Dependent } from '../../types';
 import { addClient } from '../../services/apiService';
 import { formatCPF } from '../../utils/cpfValidator';
+import { useData } from '../../context/DataContext'; // Import useData hook
 import Modal from '../common/Modal';
 
 interface AddClientModalProps {
@@ -37,6 +38,7 @@ const getTierForDependents = (count: number) => {
 
 
 const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClientAdded }) => {
+  const { setDirty } = useData(); // Get the setDirty function
   const initialFormState: Omit<Client, 'id' | 'dependents' | 'contractNumber'> = {
     name: '',
     cpf: '',
@@ -64,16 +66,13 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   
-  // Effect to auto-select plan based on dependent count
+  // Effects and handlers remain the same...
   useEffect(() => {
-    if (selectedPlan === 'custom') {
-      return; // Don't auto-update if user selected custom
-    }
+    if (selectedPlan === 'custom') return;
     const newPlanKey = getTierForDependents(dependents.length);
     setSelectedPlan(newPlanKey);
-  }, [dependents.length]);
+  }, [dependents.length, selectedPlan]);
 
-  // Effect to update monthly fee when plan changes
   useEffect(() => {
     const tier = pricingTiers.find(t => t.key === selectedPlan);
     if (tier && tier.price !== null) {
@@ -81,24 +80,16 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
     }
   }, [selectedPlan]);
 
-  const handleDependentChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    const newDependents = [...dependents];
-    newDependents[index] = { ...newDependents[index], [name]: value };
-    setDependents(newDependents);
+  const handleDependentChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => { /*...*/ 
+      const { name, value } = e.target;
+      const newDependents = [...dependents];
+      newDependents[index] = { ...newDependents[index], [name]: value };
+      setDependents(newDependents);
   };
-
-  const addDependentRow = () => {
-    setDependents([...dependents, { name: '', birthDate: '' }]);
-  };
-
-  const removeDependentRow = (index: number) => {
-    setDependents(dependents.filter((_, i) => i !== index));
-  };
-
+  const addDependentRow = () => { setDependents([...dependents, { name: '', birthDate: '' }]); };
+  const removeDependentRow = (index: number) => { setDependents(dependents.filter((_, i) => i !== index)); };
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
     if (name === 'cpf') {
         setFormData(prev => ({ ...prev, [name]: formatCPF(value) }));
     } else {
@@ -107,7 +98,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
         setFormData(prev => ({ ...prev, [name]: parsedValue as any }));
     }
   };
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -118,6 +109,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
           dependents: dependents.map(d => ({...d, cpf: '', relationship: ''})) as Dependent[],
       };
       const newClient = await addClient(fullClientData);
+      setDirty(true); // Set dirty state on success
       onClientAdded(newClient); 
       handleClose();
     } catch (err) {
@@ -142,6 +134,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Adicionar Novo Cliente" size="3xl">
       <form onSubmit={handleSubmit} className="space-y-6 max-h-[75vh] overflow-y-auto pr-4">
+        {/* JSX for the form remains the same */}
         <>
             <fieldset disabled={isSaving}>
                 <legend className="text-lg font-semibold text-ds-vinho mb-2">Dados do Titular</legend>
