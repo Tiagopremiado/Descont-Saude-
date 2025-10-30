@@ -155,8 +155,13 @@ const AdminDashboard: React.FC = () => {
     };
 
     const handleSaveToDrive = () => {
-        if (GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE') || GOOGLE_API_KEY.startsWith('SUA_CHAVE_DE_API')) {
-            alert('Configuração necessária!\n\nPor favor, adicione suas credenciais da API do Google no arquivo "src/config.ts" para usar a função de salvar no Drive.');
+        if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE') || !GOOGLE_API_KEY || GOOGLE_API_KEY.startsWith('SUA_CHAVE_DE_API')) {
+            const errorMessage = `Configuração de API do Google incompleta!
+
+- Em produção (Vercel): Verifique se as variáveis de ambiente VITE_GOOGLE_API_KEY e VITE_GOOGLE_CLIENT_ID foram configuradas no painel do projeto e se você fez o 'Redeploy' após salvá-las.
+
+- Localmente: Certifique-se de que existe um arquivo '.env' na raiz do projeto com as mesmas variáveis.`;
+            alert(errorMessage);
             return;
         }
 
