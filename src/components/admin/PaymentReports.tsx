@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Payment, Client } from '../../types';
-import { getAllPayments, getClients } from '../../services/apiService';
+import { getAllPayments, getClients, updatePaymentStatus } from '../../services/apiService';
 import Card from '../common/Card';
 import Spinner from '../common/Spinner';
 import PaymentReceiptModal from './PaymentReceiptModal';
@@ -12,6 +12,7 @@ const PaymentReports: React.FC = () => {
     const [filterStatus, setFilterStatus] = useState<Payment['status'] | 'all'>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+    const [isUpdating, setIsUpdating] = useState<string | null>(null); // paymentId of payment being updated
 
     useEffect(() => {
         const fetchData = async () => {
@@ -51,19 +52,36 @@ const PaymentReports: React.FC = () => {
         return filtered.sort((a,b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
     }, [payments, filterStatus, searchTerm, clientMap]);
 
-    const getStatusChip = (status: Payment['status']) => {
-        const styles = {
-            paid: 'bg-green-100 text-green-800',
-            pending: 'bg-yellow-100 text-yellow-800',
-            overdue: 'bg-red-100 text-red-800'
-        };
-        const text = {
-            paid: 'Pago',
-            pending: 'Pendente',
-            overdue: 'Vencido'
+    const getStatusStyles = (status: Payment['status']) => {
+        switch (status) {
+            case 'paid':
+                return 'bg-green-100 text-green-800 border-green-300';
+            case 'pending':
+                return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+            case 'overdue':
+                return 'bg-red-100 text-red-800 border-red-300';
+            default:
+                return 'bg-gray-100 text-gray-800 border-gray-300';
         }
-        return <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${styles[status]}`}>{text[status]}</span>
-    }
+    };
+    
+    const handleStatusChange = async (paymentId: string, newStatus: Payment['status']) => {
+        setIsUpdating(paymentId);
+        try {
+            const updatedPayment = await updatePaymentStatus(paymentId, newStatus);
+            if (updatedPayment) {
+                setPayments(prevPayments => 
+                    prevPayments.map(p => p.id === paymentId ? updatedPayment : p)
+                );
+            }
+        } catch (error) {
+            console.error("Failed to update payment status:", error);
+            alert("Erro ao atualizar status do pagamento.");
+        } finally {
+            setIsUpdating(null);
+        }
+    };
+
 
     return (
         <>
@@ -108,7 +126,24 @@ const PaymentReports: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.month} de {payment.year}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(payment.dueDate).toLocaleDateString('pt-BR')}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">R$ {payment.amount.toFixed(2)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">{getStatusChip(payment.status)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {isUpdating === payment.id ? (
+                                                <div className="flex justify-center items-center h-full">
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-ds-vinho"></div>
+                                                </div>
+                                            ) : (
+                                                <select 
+                                                    value={payment.status}
+                                                    onChange={(e) => handleStatusChange(payment.id, e.target.value as Payment['status'])}
+                                                    className={`w-full p-1 border rounded-md text-xs font-semibold focus:ring-ds-dourado focus:border-ds-dourado ${getStatusStyles(payment.status)}`}
+                                                    aria-label={`Status do pagamento de ${clientMap[payment.clientId]?.name}`}
+                                                >
+                                                    <option value="paid">Pago</option>
+                                                    <option value="pending">Pendente</option>
+                                                    <option value="overdue">Vencido</option>
+                                                </select>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <button onClick={() => setSelectedPayment(payment)} className="text-ds-vinho hover:text-ds-dourado">
                                                 Gerar Comprovante

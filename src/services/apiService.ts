@@ -1,5 +1,5 @@
-import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY } from './mockData';
-import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent } from '../types';
+import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders } from './mockData';
+import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder } from '../types';
 
 // Simulate API delay
 const apiDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -165,6 +165,35 @@ export const generateNewInvoice = async (clientId: string, month: string, year: 
     return JSON.parse(JSON.stringify(newPayment));
 };
 
+export const generateAnnualCarnet = async (clientId: string, year: number): Promise<Payment[]> => {
+    await apiDelay(1500); // Simulate a longer process
+    const client = MOCK_CLIENTS.find(c => c.id === clientId);
+    if (!client) {
+        throw new Error("Client not found");
+    }
+
+    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const newPayments: Payment[] = [];
+
+    for (let i = 0; i < 12; i++) {
+        const newPayment: Payment = {
+            id: `pay-${clientId}-${year}-${i}`,
+            clientId,
+            amount: client.monthlyFee,
+            month: months[i],
+            year: year,
+            dueDate: new Date(year, i, client.paymentDueDateDay).toISOString(),
+            status: 'pending',
+        };
+        newPayments.push(newPayment);
+    }
+
+    MOCK_PAYMENTS.push(...newPayments);
+    
+    return JSON.parse(JSON.stringify(newPayments));
+};
+
+
 export const generateCustomCharge = async (clientId: string, amount: number, description: string): Promise<Payment> => {
     await apiDelay(800);
     const client = MOCK_CLIENTS.find(c => c.id === clientId);
@@ -185,6 +214,16 @@ export const generateCustomCharge = async (clientId: string, amount: number, des
     };
     MOCK_PAYMENTS.push(newPayment);
     return JSON.parse(JSON.stringify(newPayment));
+};
+
+export const updatePaymentStatus = async (paymentId: string, status: Payment['status']): Promise<Payment | null> => {
+    await apiDelay(400);
+    const paymentIndex = MOCK_PAYMENTS.findIndex(p => p.id === paymentId);
+    if (paymentIndex === -1) {
+        return null;
+    }
+    MOCK_PAYMENTS[paymentIndex].status = status;
+    return JSON.parse(JSON.stringify(MOCK_PAYMENTS[paymentIndex]));
 };
 
 
@@ -222,6 +261,56 @@ export const deleteDoctor = async (id: string): Promise<{ success: true }> => {
         throw new Error('Doctor not found');
     }
     MOCK_DOCTORS.splice(docIndex, 1);
+    return { success: true };
+};
+
+
+// --- Reminder Services ---
+
+export const getReminders = async (): Promise<Reminder[]> => {
+  await apiDelay(300);
+  return JSON.parse(JSON.stringify(MOCK_REMINDERS));
+};
+
+export const addReminder = async (reminderData: Omit<Reminder, 'id' | 'createdAt' | 'status'>): Promise<Reminder> => {
+    await apiDelay(500);
+    const newReminder: Reminder = {
+        ...reminderData,
+        id: `rem${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+    };
+    MOCK_REMINDERS.unshift(newReminder);
+    saveReminders();
+    return JSON.parse(JSON.stringify(newReminder));
+};
+
+export const updateReminderStatus = async (id: string, status: Reminder['status']): Promise<Reminder | null> => {
+    await apiDelay(400);
+    const reminderIndex = MOCK_REMINDERS.findIndex(r => r.id === id);
+    if (reminderIndex === -1) return null;
+
+    MOCK_REMINDERS[reminderIndex].status = status;
+    saveReminders();
+    return JSON.parse(JSON.stringify(MOCK_REMINDERS[reminderIndex]));
+};
+
+export const deleteReminder = async (id: string): Promise<{ success: true }> => {
+    await apiDelay(300);
+    const initialLength = MOCK_REMINDERS.length;
+    let indexToDelete = -1;
+    for(let i = 0; i < MOCK_REMINDERS.length; i++) {
+        if(MOCK_REMINDERS[i].id === id) {
+            indexToDelete = i;
+            break;
+        }
+    }
+    
+    if (indexToDelete === -1) {
+        throw new Error('Reminder not found');
+    }
+    MOCK_REMINDERS.splice(indexToDelete, 1);
+    saveReminders();
     return { success: true };
 };
 

@@ -80,3 +80,13 @@ export interface ServiceHistoryItem {
   doctorName: string;
   specialty: string;
 }
+
+export interface Reminder {
+  id: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  status: 'pending' | 'completed';
+  clientId?: string;
+  clientName?: string;
+  createdAt: string; // ISO string
+}

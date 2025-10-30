@@ -3,12 +3,24 @@ import Header from '../components/Header';
 import ClientManagement from '../components/admin/ClientManagement';
 import PaymentReports from '../components/admin/PaymentReports';
 import DoctorManagement from '../components/admin/DoctorManagement';
+import ReminderManagement from '../components/admin/ReminderManagement';
+import SalesScripts from '../components/admin/SalesScripts';
 import GenerationResultModal from '../components/admin/GenerationResultModal';
-import { getClients } from '../services/apiService';
+import { getClients, getReminders } from '../services/apiService';
 import { MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, setBackupData, resetData } from '../services/mockData';
-import type { Client } from '../types';
+import { GOOGLE_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_DRIVE_SCOPE } from '../config';
+import type { Client, Reminder } from '../types';
+import CarnetGeneration from '../components/admin/CarnetGeneration';
 
-type AdminTab = 'clients' | 'payments' | 'doctors';
+declare global {
+    interface Window {
+        gapi: any;
+        google: any;
+        tokenClient: any;
+    }
+}
+
+type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'sales' | 'carnet';
 
 const DownloadIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -23,6 +35,13 @@ const UploadIcon = () => (
     </svg>
 );
 
+const DriveIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+    </svg>
+);
+
+
 const ResetIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
       <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" />
@@ -33,23 +52,67 @@ const ResetIcon = () => (
 const AdminDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<AdminTab>('clients');
     const [clients, setClients] = useState<Client[]>([]);
+    const [reminders, setReminders] = useState<Reminder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterPending, setFilterPending] = useState(false);
     const [generatedClient, setGeneratedClient] = useState<Client | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const fetchAllClients = async () => {
+    // Google Drive State
+    const [isGapiLoaded, setIsGapiLoaded] = useState(false);
+    const [isGisLoaded, setIsGisLoaded] = useState(false);
+    const [isSavingToDrive, setIsSavingToDrive] = useState(false);
+
+
+    const fetchData = async () => {
         setIsLoading(true);
-        const clientData = await getClients();
+        const [clientData, reminderData] = await Promise.all([getClients(), getReminders()]);
         setClients(clientData);
+        setReminders(reminderData);
         setIsLoading(false);
     };
 
     useEffect(() => {
-        fetchAllClients();
+        fetchData();
+
+        // Load Google API scripts
+        const gapiScript = document.createElement('script');
+        gapiScript.src = 'https://apis.google.com/js/api.js';
+        gapiScript.async = true;
+        gapiScript.defer = true;
+        gapiScript.onload = () => window.gapi.load('client', () => setIsGapiLoaded(true));
+        document.body.appendChild(gapiScript);
+
+        const gisScript = document.createElement('script');
+        gisScript.src = 'https://accounts.google.com/gsi/client';
+        gisScript.async = true;
+        gisScript.defer = true;
+        gisScript.onload = () => setIsGisLoaded(true);
+        document.body.appendChild(gisScript);
+
     }, []);
 
-    const pendingItemsCount = useMemo(() => {
+    useEffect(() => {
+        if (isGapiLoaded) {
+             window.gapi.client.init({
+                apiKey: GOOGLE_API_KEY,
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+            });
+        }
+    }, [isGapiLoaded]);
+
+    useEffect(() => {
+        if (isGisLoaded && GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE')) {
+            window.tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: GOOGLE_DRIVE_SCOPE,
+                callback: '', // Callback will be handled by the promise
+            });
+        }
+    }, [isGisLoaded]);
+
+
+    const pendingClientItemsCount = useMemo(() => {
         const dependentCount = clients.reduce((count, client) => {
             const pending = client.dependents.filter(d => d.status === 'pending').length;
             return count + pending;
@@ -57,6 +120,10 @@ const AdminDashboard: React.FC = () => {
         const clientCount = clients.filter(c => c.status === 'pending').length;
         return dependentCount + clientCount;
     }, [clients]);
+
+    const pendingRemindersCount = useMemo(() => {
+      return reminders.filter(r => r.status === 'pending').length;
+    }, [reminders]);
 
     const handleNotificationClick = () => {
         setActiveTab('clients');
@@ -87,10 +154,96 @@ const AdminDashboard: React.FC = () => {
         link.click();
     };
 
+    const handleSaveToDrive = () => {
+        if (GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE') || GOOGLE_API_KEY.startsWith('SUA_CHAVE_DE_API')) {
+            alert('Configuração necessária!\n\nPor favor, adicione suas credenciais da API do Google no arquivo "src/config.ts" para usar a função de salvar no Drive.');
+            return;
+        }
+
+        if (!isGapiLoaded || !isGisLoaded || !window.tokenClient) {
+            alert("A API do Google Drive ainda não foi carregada. Tente novamente em alguns segundos.");
+            return;
+        }
+
+        setIsSavingToDrive(true);
+        
+        window.tokenClient.callback = async (resp: any) => {
+            if (resp.error !== undefined) {
+                setIsSavingToDrive(false);
+                console.error("Google Auth Error:", resp);
+                alert(`Erro de autenticação com o Google: ${resp.error}. Verifique a configuração no Google Cloud Console.`);
+                return;
+            }
+            
+            try {
+                const backupData = {
+                    clients: MOCK_CLIENTS,
+                    doctors: MOCK_DOCTORS,
+                    payments: MOCK_PAYMENTS,
+                };
+                const jsonString = JSON.stringify(backupData, null, 2);
+                const file = new Blob([jsonString], { type: 'application/json' });
+                const date = new Date().toISOString().slice(0, 10);
+                const fileName = `descontsaude_backup_${date}.json`;
+
+                const boundary = '-------314159265358979323846';
+                const delimiter = `\r\n--${boundary}\r\n`;
+                const close_delim = `\r\n--${boundary}--`;
+
+                const metadata = {
+                    name: fileName,
+                    mimeType: 'application/json',
+                    // parents: ['appDataFolder'] // Use para pasta privada do app
+                };
+                
+                const multipartRequestBody =
+                    delimiter +
+                    'Content-Type: application/json\r\n\r\n' +
+                    JSON.stringify(metadata) +
+                    delimiter +
+                    'Content-Type: application/json\r\n\r\n' +
+                    jsonString +
+                    close_delim;
+
+                const request = window.gapi.client.request({
+                    'path': 'https://www.googleapis.com/upload/drive/v3/files',
+                    'method': 'POST',
+                    'params': {'uploadType': 'multipart'},
+                    'headers': {
+                        'Content-Type': `multipart/related; boundary=${boundary}`
+                    },
+                    'body': multipartRequestBody
+                });
+
+                request.execute((file: any, err: any) => {
+                    if (err) {
+                        console.error("Google Drive API Error:", err);
+                        alert(`Falha ao salvar no Google Drive: ${err.result.error.message}`);
+                    } else {
+                        alert("Backup salvo no Google Drive com sucesso!");
+                    }
+                    setIsSavingToDrive(false);
+                });
+
+            } catch (e) {
+                console.error("Error saving to drive:", e);
+                alert("Ocorreu um erro inesperado ao salvar o backup.");
+                setIsSavingToDrive(false);
+            }
+        };
+
+        if (window.gapi.client.getToken() === null) {
+            window.tokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+            window.tokenClient.requestAccessToken({ prompt: '' });
+        }
+    };
+
+
     const handleRestoreClick = () => {
         fileInputRef.current?.click();
     };
-    
+
     const handleResetData = () => {
         if (window.confirm("Você tem certeza que deseja resetar todos os dados para o padrão? O backup salvo será perdido. Esta ação é irreversível.")) {
             resetData();
@@ -116,8 +269,6 @@ const AdminDashboard: React.FC = () => {
                     setBackupData(backupData);
                     alert("Backup restaurado com sucesso! A página será recarregada para aplicar as mudanças.");
                     window.location.reload();
-                } else {
-                    alert("Restauração de backup cancelada pelo usuário.");
                 }
             } catch (error) {
                 console.error("Error parsing backup file:", error);
@@ -150,6 +301,12 @@ const AdminDashboard: React.FC = () => {
                 return <PaymentReports />;
             case 'doctors':
                 return <DoctorManagement />;
+            case 'reminders':
+                return <ReminderManagement clients={clients} onUpdate={fetchData} initialReminders={reminders} />;
+            case 'sales':
+                return <SalesScripts />;
+            case 'carnet':
+                return <CarnetGeneration clients={clients} />;
             default:
                 return <ClientManagement 
                             initialClients={clients} 
@@ -165,7 +322,7 @@ const AdminDashboard: React.FC = () => {
     const TabButton: React.FC<{tab: AdminTab, label: string, count?: number}> = ({ tab, label, count = 0 }) => (
          <button
             onClick={() => handleTabClick(tab)}
-            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-colors duration-200 ${
+            className={`flex items-center whitespace-nowrap space-x-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-colors duration-200 ${
                 activeTab === tab 
                 ? 'bg-gray-100 text-ds-vinho border-b-2 border-ds-vinho' 
                 : 'text-gray-600 hover:bg-gray-200'
@@ -178,32 +335,33 @@ const AdminDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <Header pendingCount={pendingItemsCount} onNotificationClick={handleNotificationClick} />
+            <Header pendingCount={pendingClientItemsCount} onNotificationClick={handleNotificationClick} />
             <main className="p-4 sm:p-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
                         <h2 className="text-3xl font-bold text-ds-vinho">Painel Administrativo</h2>
-                        <div className="flex items-center gap-2 mt-4 sm:mt-0">
+                        <div className="flex items-center gap-2 mt-4 sm:mt-0 flex-wrap justify-center">
                             <button
                                 onClick={handleDownloadBackup}
                                 className="flex items-center bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600 transition-colors text-sm"
                             >
                                 <DownloadIcon />
-                                Backup
+                                Download Backup
+                            </button>
+                             <button
+                                onClick={handleSaveToDrive}
+                                disabled={isSavingToDrive}
+                                className="flex items-center bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-sm disabled:bg-gray-400"
+                            >
+                                <DriveIcon />
+                                {isSavingToDrive ? 'Salvando...' : 'Salvar no Drive'}
                             </button>
                             <button
                                 onClick={handleRestoreClick}
                                 className="flex items-center bg-green-500 text-white font-bold py-2 px-4 rounded-full hover:bg-green-600 transition-colors text-sm"
                             >
                                 <UploadIcon />
-                                Restaurar
-                            </button>
-                            <button
-                                onClick={handleResetData}
-                                className="flex items-center bg-red-500 text-white font-bold py-2 px-4 rounded-full hover:bg-red-600 transition-colors text-sm"
-                            >
-                                <ResetIcon />
-                                Resetar
+                                Restaurar Backup
                             </button>
                             <input
                                 type="file"
@@ -212,13 +370,23 @@ const AdminDashboard: React.FC = () => {
                                 className="hidden"
                                 accept=".json"
                             />
+                            <button
+                                onClick={handleResetData}
+                                className="flex items-center bg-red-500 text-white font-bold py-2 px-4 rounded-full hover:bg-red-600 transition-colors text-sm"
+                            >
+                                <ResetIcon />
+                                Resetar Dados
+                            </button>
                         </div>
                     </div>
                     <div className="border-b border-gray-300 mb-6">
-                        <nav className="-mb-px flex space-x-4">
-                            <TabButton tab="clients" label="Gerenciar Clientes" count={pendingItemsCount} />
+                        <nav className="-mb-px flex space-x-4 overflow-x-auto pb-px">
+                            <TabButton tab="clients" label="Gerenciar Clientes" count={pendingClientItemsCount} />
+                            <TabButton tab="reminders" label="Lembretes" count={pendingRemindersCount} />
                             <TabButton tab="payments" label="Relatório de Pagamentos" />
                             <TabButton tab="doctors" label="Guia Médico" />
+                            <TabButton tab="carnet" label="Gerar Carnês" />
+                            <TabButton tab="sales" label="Scripts de Venda" />
                         </nav>
                     </div>
                     <div>{renderContent()}</div>

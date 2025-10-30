@@ -5,10 +5,19 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: 'md' | 'lg' | 'xl' | '2xl' | '3xl';
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'lg' }) => {
   if (!isOpen) return null;
+
+  const sizeClasses = {
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+  };
 
   return (
     <div 
@@ -18,7 +27,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       role="dialog"
     >
       <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-full"
+        className={`bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} flex flex-col max-h-[90vh]`}
         onClick={e => e.stopPropagation()} // Prevent closing when clicking inside the modal
       >
         <div className="flex justify-between items-center p-4 border-b border-gray-200 flex-shrink-0">

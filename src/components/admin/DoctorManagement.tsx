@@ -279,7 +279,7 @@ const DoctorManagement: React.FC = () => {
                 )}
             </Card>
 
-            <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={selectedDoctor ? 'Editar Profissional' : 'Adicionar Profissional'}>
+            <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={selectedDoctor ? 'Editar Profissional' : 'Adicionar Profissional'} size="xl">
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <fieldset disabled={isSaving}>
                         <div>

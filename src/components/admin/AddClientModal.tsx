@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Client, Dependent } from '../../types';
 import { addClient } from '../../services/apiService';
 import { formatCPF } from '../../utils/cpfValidator';
@@ -19,6 +19,23 @@ const ButtonSpinner = () => (
     </svg>
 );
 
+const pricingTiers = [
+    { key: 'titular_0', label: 'Titular (sozinho) - R$ 23,00', price: 23.00 },
+    { key: 'titular_3', label: 'Titular + até 3 dependentes - R$ 26,00', price: 26.00 },
+    { key: 'titular_4', label: 'Titular + até 4 dependentes - R$ 29,00', price: 29.00 },
+    { key: 'titular_5', label: 'Titular + até 5 dependentes - R$ 33,00', price: 33.00 },
+    { key: 'custom', label: 'Valor Personalizado', price: null },
+];
+
+const getTierForDependents = (count: number) => {
+    if (count === 0) return 'titular_0';
+    if (count >= 1 && count <= 3) return 'titular_3';
+    if (count === 4) return 'titular_4';
+    if (count === 5) return 'titular_5';
+    return 'custom'; // For 6 or more, default to custom
+};
+
+
 const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClientAdded }) => {
   const initialFormState: Omit<Client, 'id' | 'dependents' | 'contractNumber'> = {
     name: '',
@@ -33,7 +50,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
     neighborhood: '',
     city: 'Pedro Osório',
     plan: 'Plano Padrão',
-    monthlyFee: 26.00,
+    monthlyFee: 23.00,
     registrationFee: 0.00,
     paymentDueDateDay: 20,
     promotion: true,
@@ -43,9 +60,27 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
 
   const [formData, setFormData] = useState(initialFormState);
   const [dependents, setDependents] = useState<DependentFormData[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState('titular_0');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   
+  // Effect to auto-select plan based on dependent count
+  useEffect(() => {
+    if (selectedPlan === 'custom') {
+      return; // Don't auto-update if user selected custom
+    }
+    const newPlanKey = getTierForDependents(dependents.length);
+    setSelectedPlan(newPlanKey);
+  }, [dependents.length]);
+
+  // Effect to update monthly fee when plan changes
+  useEffect(() => {
+    const tier = pricingTiers.find(t => t.key === selectedPlan);
+    if (tier && tier.price !== null) {
+      setFormData(prev => ({ ...prev, monthlyFee: tier.price }));
+    }
+  }, [selectedPlan]);
+
   const handleDependentChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const newDependents = [...dependents];
@@ -96,15 +131,16 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
   const handleClose = () => {
     setFormData(initialFormState);
     setDependents([]);
+    setSelectedPlan('titular_0');
     setError('');
     onClose();
   };
   
-  const inputClass = "mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado";
+  const inputClass = "bg-white text-gray-900 mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado disabled:bg-gray-100 disabled:cursor-not-allowed";
   const labelClass = "block text-sm font-medium text-gray-700";
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Adicionar Novo Cliente">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Adicionar Novo Cliente" size="3xl">
       <form onSubmit={handleSubmit} className="space-y-6 max-h-[75vh] overflow-y-auto pr-4">
         <>
             <fieldset disabled={isSaving}>
@@ -166,30 +202,57 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
 
             <fieldset disabled={isSaving}>
                  <legend className="text-lg font-semibold text-ds-vinho mb-2">Detalhes do Contrato</legend>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                     <div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="add-plan-selector" className={labelClass}>Plano de Preços</label>
+                        <select
+                            id="add-plan-selector"
+                            name="planSelector"
+                            value={selectedPlan}
+                            onChange={(e) => setSelectedPlan(e.target.value)}
+                            className={`${inputClass} bg-white`}
+                        >
+                            {pricingTiers.map(tier => (
+                                <option key={tier.key} value={tier.key}>{tier.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="add-monthlyFee" className={labelClass}>Mensalidade (R$)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            id="add-monthlyFee"
+                            name="monthlyFee"
+                            value={formData.monthlyFee}
+                            onChange={handleChange}
+                            required
+                            className={inputClass}
+                            disabled={selectedPlan !== 'custom'}
+                            readOnly={selectedPlan !== 'custom'}
+                        />
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                    <div>
                         <label htmlFor="add-registrationFee" className={labelClass}>Taxa de Cadastro</label>
                         <input type="number" step="0.01" name="registrationFee" id="add-registrationFee" value={formData.registrationFee} onChange={handleChange} required className={inputClass}/>
                     </div>
-                     <div>
-                        <label htmlFor="add-monthlyFee" className={labelClass}>Mensalidade</label>
-                        <input type="number" step="0.01" name="monthlyFee" id="add-monthlyFee" value={formData.monthlyFee} onChange={handleChange} required className={inputClass}/>
-                    </div>
                     <div>
-                        <label htmlFor="add-paymentDueDateDay" className={labelClass}>Vencimento</label>
+                        <label htmlFor="add-paymentDueDateDay" className={labelClass}>Dia do Vencimento</label>
                         <input type="number" min="1" max="31" name="paymentDueDateDay" id="add-paymentDueDateDay" value={formData.paymentDueDateDay} onChange={handleChange} required className={inputClass}/>
                     </div>
-                     <div className="flex items-end">
-                        <label className="flex items-center space-x-2 cursor-pointer">
+                    <div className="flex items-end">
+                        <label className="flex items-center space-x-2 cursor-pointer h-full">
                             <input type="checkbox" name="promotion" checked={formData.promotion} onChange={handleChange} className="h-5 w-5 rounded text-ds-vinho focus:ring-ds-dourado"/>
-                            <span className={labelClass}>Promoção</span>
+                            <span className={labelClass}>Promoção Ativa</span>
                         </label>
                     </div>
-                 </div>
+                </div>
             </fieldset>
             
             <fieldset disabled={isSaving}>
-                <legend className="text-lg font-semibold text-ds-vinho mb-2">Dependentes</legend>
+                <legend className="text-lg font-semibold text-ds-vinho mb-2">Dependentes ({dependents.length})</legend>
                 <div className="space-y-3">
                     {dependents.map((dep, index) => (
                         <div key={index} className="flex items-end gap-2 p-2 bg-gray-50 rounded">

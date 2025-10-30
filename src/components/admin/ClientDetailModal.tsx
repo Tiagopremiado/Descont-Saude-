@@ -5,6 +5,7 @@ import { formatCPF } from '../../utils/cpfValidator';
 import Modal from '../common/Modal';
 import Spinner from '../common/Spinner';
 import AddDependentModal from './AddDependentModal';
+import ClientBillingsTab from './ClientBillingsTab';
 
 
 interface ClientDetailModalProps {
@@ -15,7 +16,7 @@ interface ClientDetailModalProps {
 }
 
 const ButtonSpinner = () => (
-    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -29,10 +30,12 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isAddDependentModalOpen, setIsAddDependentModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'data' | 'billings'>('data');
 
 
   useEffect(() => {
     setFormData(client);
+    setActiveTab('data'); // Reset to first tab when client changes
   }, [client]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -92,7 +95,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
     setIsResettingPassword(true);
     try {
         await resetClientPassword(client.id);
-        alert("A senha do cliente foi redefinida para 'password123'.");
+        alert("A senha do cliente foi redefinida para os 4 últimos dígitos do CPF.");
         setIsResetPasswordModalOpen(false);
     } catch (error) {
         alert("Ocorreu um erro ao resetar a senha.");
@@ -132,147 +135,186 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
 
 
   const labelClass = "block text-sm font-medium text-gray-700";
-  const inputClass = "mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado disabled:bg-gray-100";
-  const selectClass = `${inputClass} bg-white`;
+  const inputClass = "bg-white text-gray-900 mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado disabled:bg-gray-100";
+  const selectClass = `${inputClass}`;
   
   const KeyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L4 19.743V16a1 1 0 00-2 0v4a1 1 0 001 1h4a1 1 0 000-2H5.257l5.9-5.9A6 6 0 1118 8zm-6-4a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd" /></svg>;
 
+  const TabButton: React.FC<{tab: 'data' | 'billings', label: string}> = ({ tab, label }) => (
+    <button
+       type="button"
+       onClick={() => setActiveTab(tab)}
+       className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors duration-200 ${
+           activeTab === tab 
+           ? 'bg-gray-100 text-ds-vinho border-b-2 border-ds-vinho' 
+           : 'text-gray-600 hover:bg-gray-200'
+       }`}
+   >
+       {label}
+   </button>
+  );
 
   return (
     <>
-    <Modal isOpen={isOpen} onClose={onClose} title={`Editar Cliente: ${client.name}`}>
-      <>
-        <div className="p-4 -mt-6 -mx-6 mb-4 flex justify-start">
-            <button
-                type="button"
-                onClick={() => onShowGenerationResult(client)}
-                className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors text-sm"
-            >
-                Gerar Contrato e Cartões
-            </button>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Detalhes do Cliente: ${client.name}`} size="3xl">
+       <div className="border-b border-gray-200 -mt-6 -mx-6 mb-4">
+            <nav className="-mb-px flex space-x-4 px-6">
+                <TabButton tab="data" label="Dados do Cliente" />
+                <TabButton tab="billings" label="Mensalidades" />
+            </nav>
         </div>
-        <form onSubmit={handleSave} className="space-y-4">
-            {/* Personal Data Section */}
-            <fieldset disabled={isFormSaving || !!dependentActionLoading}>
-              <div>
-                  <h4 className="font-bold text-gray-700 mb-2">Dados Pessoais</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                          <label htmlFor="edit-name" className={labelClass}>Nome Completo</label>
-                          <input type="text" name="name" id="edit-name" value={formData.name} onChange={handleChange} className={inputClass} required />
-                      </div>
-                      <div>
-                          <label htmlFor="edit-cpf" className={labelClass}>CPF</label>
-                          <input type="text" name="cpf" id="edit-cpf" value={formData.cpf} onChange={handleChange} className={inputClass} required maxLength={14} placeholder="000.000.000-00" />
-                      </div>
-                      <div>
-                          <label htmlFor="edit-email" className={labelClass}>Email</label>
-                          <input type="email" name="email" id="edit-email" value={formData.email} onChange={handleChange} className={inputClass} required />
-                      </div>
-                      <div>
-                          <label htmlFor="edit-phone" className={labelClass}>Telefone</label>
-                          <input type="tel" name="phone" id="edit-phone" value={formData.phone} onChange={handleChange} className={inputClass} required />
-                      </div>
-                  </div>
-                  <div className="mt-4">
-                      <label htmlFor="edit-address" className={labelClass}>Endereço</label>
-                      <input type="text" name="address" id="edit-address" value={formData.address} onChange={handleChange} className={inputClass} required />
-                  </div>
-              </div>
-              <hr/>
-              {/* Plan and Status Section */}
-              <div>
-                  <h4 className="font-bold text-gray-700 mb-2">Plano e Status</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                          <label htmlFor="edit-plan" className={labelClass}>Plano</label>
-                          <input type="text" id="edit-plan" name="plan" value={formData.plan} onChange={handleChange} className={inputClass} required/>
-                      </div>
-                      <div>
-                          <label htmlFor="edit-monthlyFee" className={labelClass}>Mensalidade (R$)</label>
-                          <input type="number" step="0.01" id="edit-monthlyFee" name="monthlyFee" value={formData.monthlyFee} onChange={handleChange} className={inputClass} required />
-                      </div>
-                      <div>
-                          <label htmlFor="edit-status" className={`${labelClass} flex items-center`}>
-                              Status
-                              <span className="ml-2">{getClientStatusChip(formData.status)}</span>
-                          </label>
-                          <select id="edit-status" name="status" value={formData.status} onChange={handleChange} className={selectClass} required>
-                              <option value="active">Ativo</option>
-                              <option value="inactive">Inativo</option>
-                              <option value="pending">Pendente</option>
-                          </select>
-                      </div>
-                  </div>
-              </div>
-            </fieldset>
-            <hr/>
-            {/* Login Section */}
-            <div>
-                <h4 className="font-bold text-gray-700 mb-2">Acesso ao Portal</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+      
+        <div className="min-h-[40vh] max-h-[60vh] overflow-y-auto pr-2">
+            {activeTab === 'data' && (
+                <form id="client-detail-form" onSubmit={handleSave} className="space-y-4">
+                    {/* Personal Data Section */}
+                    <fieldset disabled={isFormSaving || !!dependentActionLoading}>
                     <div>
-                        <label className={labelClass}>Login</label>
-                        <p className="text-sm text-gray-600 mt-1">O cliente acessa com o CPF (<span className="font-semibold">{formData.cpf}</span>) ou Telefone (<span className="font-semibold">{formData.phone}</span>).</p>
+                        <h4 className="font-bold text-gray-700 mb-2">Dados Pessoais</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="edit-name" className={labelClass}>Nome Completo</label>
+                                <input type="text" name="name" id="edit-name" value={formData.name} onChange={handleChange} className={inputClass} required />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-cpf" className={labelClass}>CPF</label>
+                                <input type="text" name="cpf" id="edit-cpf" value={formData.cpf} onChange={handleChange} className={inputClass} required maxLength={14} placeholder="000.000.000-00" />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-email" className={labelClass}>Email</label>
+                                <input type="email" name="email" id="edit-email" value={formData.email} onChange={handleChange} className={inputClass} required />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-phone" className={labelClass}>Telefone</label>
+                                <input type="tel" name="phone" id="edit-phone" value={formData.phone} onChange={handleChange} className={inputClass} required />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <label htmlFor="edit-address" className={labelClass}>Endereço</label>
+                            <input type="text" name="address" id="edit-address" value={formData.address} onChange={handleChange} className={inputClass} required />
+                        </div>
                     </div>
-                     <div>
-                        <label className={labelClass}>Senha</label>
-                        <button 
-                            type="button" 
-                            onClick={() => setIsResetPasswordModalOpen(true)}
-                            className="flex items-center justify-center w-full mt-1 bg-red-100 text-red-700 font-bold py-2 px-4 rounded-full hover:bg-red-200 transition-colors text-sm"
-                        >
-                           <KeyIcon /> Resetar Senha
-                        </button>
+                    <hr/>
+                    {/* Plan and Status Section */}
+                    <div>
+                        <h4 className="font-bold text-gray-700 mb-2">Plano e Status</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label htmlFor="edit-plan" className={labelClass}>Plano</label>
+                                <input type="text" id="edit-plan" name="plan" value={formData.plan} onChange={handleChange} className={inputClass} required/>
+                            </div>
+                            <div>
+                                <label htmlFor="edit-monthlyFee" className={labelClass}>Mensalidade (R$)</label>
+                                <input type="number" step="0.01" id="edit-monthlyFee" name="monthlyFee" value={formData.monthlyFee} onChange={handleChange} className={inputClass} required />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-status" className={`${labelClass} flex items-center`}>
+                                    Status
+                                    <span className="ml-2">{getClientStatusChip(formData.status)}</span>
+                                </label>
+                                <select id="edit-status" name="status" value={formData.status} onChange={handleChange} className={selectClass} required>
+                                    <option value="active">Ativo</option>
+                                    <option value="inactive">Inativo</option>
+                                    <option value="pending">Pendente</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-            <hr/>
-            {/* Dependents Section */}
+                    </fieldset>
+                    <hr/>
+                    {/* Login Section */}
+                    <div>
+                        <h4 className="font-bold text-gray-700 mb-2">Acesso ao Portal</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                            <div>
+                                <label className={labelClass}>Login</label>
+                                <p className="text-sm text-gray-600 mt-1">O cliente acessa com o CPF (<span className="font-semibold">{formData.cpf}</span>) ou Telefone (<span className="font-semibold">{formData.phone}</span>).</p>
+                            </div>
+                            <div>
+                                <label className={labelClass}>Senha</label>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setIsResetPasswordModalOpen(true)}
+                                    className="flex items-center justify-center w-full mt-1 bg-red-100 text-red-700 font-bold py-2 px-4 rounded-full hover:bg-red-200 transition-colors text-sm"
+                                >
+                                <KeyIcon /> Resetar Senha
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <hr/>
+                    {/* Dependents Section */}
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-bold text-gray-700">Dependentes</h4>
+                            <button type="button" onClick={() => setIsAddDependentModalOpen(true)} className="text-sm bg-ds-dourado text-ds-vinho font-semibold py-1 px-3 rounded-md hover:bg-opacity-90">+ Adicionar</button>
+                        </div>
+                        {formData.dependents.length > 0 ? (
+                            <ul className="divide-y divide-gray-100">
+                                {formData.dependents.map(dep => (
+                                    <li key={dep.id} className="py-3 flex justify-between items-center">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-gray-800">{dep.name}</p>
+                                            <p className="text-sm text-gray-500">{dep.relationship} - CPF: {dep.cpf}</p>
+                                            <p className="text-xs text-gray-400">Nasc: {new Date(dep.birthDate).toLocaleDateString('pt-BR')}</p>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            {getDependentStatusChip(dep.status)}
+                                            {dependentActionLoading === dep.id && <div className="w-5 h-5"><Spinner /></div>}
+                                            {dep.status === 'pending' && dependentActionLoading !== dep.id && (
+                                                <>
+                                                    <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-green-500 text-white font-bold py-1 px-2 rounded-full hover:bg-green-600">Aprovar</button>
+                                                    <button type="button" onClick={() => handleDependentAction('reject', dep.id)} className="text-xs bg-red-500 text-white font-bold py-1 px-2 rounded-full hover:bg-red-600">Rejeitar</button>
+                                                </>
+                                            )}
+                                            {dep.status === 'active' && dependentActionLoading !== dep.id && (
+                                                <button type="button" onClick={() => handleDependentAction('inactivate', dep.id)} className="text-xs bg-gray-500 text-white font-bold py-1 px-2 rounded-full hover:bg-gray-600">Inativar</button>
+                                            )}
+                                            {dep.status === 'inactive' && dependentActionLoading !== dep.id && (
+                                                <button type="button" onClick={() => handleDependentAction('reactivate', dep.id)} className="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded-full hover:bg-blue-600">Reativar</button>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-gray-500">Nenhum dependente cadastrado.</p>}
+                    </div>
+                </form>
+            )}
+            {activeTab === 'billings' && (
+                <ClientBillingsTab client={client} />
+            )}
+        </div>
+
+        <div className="flex justify-between items-center pt-4 border-t mt-4">
             <div>
-                <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-bold text-gray-700">Dependentes</h4>
-                    <button type="button" onClick={() => setIsAddDependentModalOpen(true)} className="text-sm bg-ds-dourado text-ds-vinho font-semibold py-1 px-3 rounded-md hover:bg-opacity-90">+ Adicionar</button>
-                </div>
-                {formData.dependents.length > 0 ? (
-                    <ul className="divide-y divide-gray-100">
-                        {formData.dependents.map(dep => (
-                            <li key={dep.id} className="py-3 flex justify-between items-center">
-                                <div className="flex-1">
-                                    <p className="font-medium text-gray-800">{dep.name}</p>
-                                    <p className="text-sm text-gray-500">{dep.relationship} - CPF: {dep.cpf}</p>
-                                    <p className="text-xs text-gray-400">Nasc: {new Date(dep.birthDate).toLocaleDateString('pt-BR')}</p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    {getDependentStatusChip(dep.status)}
-                                    {dependentActionLoading === dep.id && <div className="w-5 h-5"><Spinner /></div>}
-                                    {dep.status === 'pending' && dependentActionLoading !== dep.id && (
-                                        <>
-                                            <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-green-500 text-white font-bold py-1 px-2 rounded-full hover:bg-green-600">Aprovar</button>
-                                            <button type="button" onClick={() => handleDependentAction('reject', dep.id)} className="text-xs bg-red-500 text-white font-bold py-1 px-2 rounded-full hover:bg-red-600">Rejeitar</button>
-                                        </>
-                                    )}
-                                    {dep.status === 'active' && dependentActionLoading !== dep.id && (
-                                        <button type="button" onClick={() => handleDependentAction('inactivate', dep.id)} className="text-xs bg-gray-500 text-white font-bold py-1 px-2 rounded-full hover:bg-gray-600">Inativar</button>
-                                    )}
-                                    {dep.status === 'inactive' && dependentActionLoading !== dep.id && (
-                                        <button type="button" onClick={() => handleDependentAction('reactivate', dep.id)} className="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded-full hover:bg-blue-600">Reativar</button>
-                                    )}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                ) : <p className="text-gray-500">Nenhum dependente cadastrado.</p>}
-            </div>
-            <div className="flex justify-end space-x-3 pt-4 border-t mt-4">
-                <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isFormSaving}>Cancelar</button>
-                <button type="submit" className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75 disabled:cursor-not-allowed" disabled={isFormSaving || !!dependentActionLoading}>
-                    {isFormSaving && <ButtonSpinner />}
-                    {isFormSaving ? 'Salvando...' : 'Salvar Alterações'}
+                 <button
+                    type="button"
+                    onClick={() => onShowGenerationResult(client)}
+                    className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors text-sm"
+                    disabled={isFormSaving}
+                >
+                    Gerar Contrato e Cartões
                 </button>
             </div>
-        </form>
-      </>
+            <div className="flex space-x-3">
+                <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isFormSaving}>
+                    Fechar
+                </button>
+                {activeTab === 'data' && (
+                     <button 
+                        type="submit" 
+                        form="client-detail-form"
+                        className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75 disabled:cursor-not-allowed" 
+                        disabled={isFormSaving || !!dependentActionLoading}
+                    >
+                        {isFormSaving && <ButtonSpinner />}
+                        {isFormSaving ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
+                )}
+            </div>
+        </div>
+      
     </Modal>
     
     <Modal
