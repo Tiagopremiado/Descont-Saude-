@@ -1,7 +1,5 @@
-// FIX: Add a triple-slash directive to include Vite's client types. This provides type definitions for `import.meta.env` used by Vite, resolving the 'Property 'env' does not exist on type 'ImportMeta'' error.
+// FIX: The triple-slash directive below includes Vite's client types. This is necessary for TypeScript to recognize `import.meta.env` and resolves the "'env' does not exist on type 'ImportMeta'" error.
 /// <reference types="vite/client" />
-
-// src/config.ts
 
 // IMPORTANTE:
 // As variáveis de ambiente para a API do Google (VITE_GOOGLE_API_KEY e VITE_GOOGLE_CLIENT_ID)

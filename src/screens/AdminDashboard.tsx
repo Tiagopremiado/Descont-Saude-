@@ -61,7 +61,25 @@ const AdminDashboard: React.FC = () => {
     // Google Drive State
     const [isGapiLoaded, setIsGapiLoaded] = useState(false);
     const [isGisLoaded, setIsGisLoaded] = useState(false);
-    const [isSavingToDrive, setIsSavingToDrive] = useState(false);
+    const [driveSaveState, setDriveSaveState] = useState<'idle' | 'saving' | 'success'>('idle');
+    const [driveRestoreState, setDriveRestoreState] = useState<'idle' | 'restoring'>('idle');
+
+    const ButtonSpinner = () => (
+        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    );
+    const CheckIcon = () => (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+    );
+    const RestoreFromDriveIcon = () => (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+        </svg>
+    );
 
 
     const fetchData = async () => {
@@ -110,6 +128,13 @@ const AdminDashboard: React.FC = () => {
             });
         }
     }, [isGisLoaded]);
+
+    useEffect(() => {
+        if (driveSaveState === 'success') {
+            const timer = setTimeout(() => setDriveSaveState('idle'), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [driveSaveState]);
 
 
     const pendingClientItemsCount = useMemo(() => {
@@ -170,11 +195,11 @@ const AdminDashboard: React.FC = () => {
             return;
         }
 
-        setIsSavingToDrive(true);
+        setDriveSaveState('saving');
         
         window.tokenClient.callback = async (resp: any) => {
             if (resp.error !== undefined) {
-                setIsSavingToDrive(false);
+                setDriveSaveState('idle');
                 console.error("Google Auth Error:", resp);
                 alert(`Erro de autenticação com o Google: ${resp.error}. Verifique a configuração no Google Cloud Console.`);
                 return;
@@ -198,7 +223,6 @@ const AdminDashboard: React.FC = () => {
                 const metadata = {
                     name: fileName,
                     mimeType: 'application/json',
-                    // parents: ['appDataFolder'] // Use para pasta privada do app
                 };
                 
                 const multipartRequestBody =
@@ -224,19 +248,88 @@ const AdminDashboard: React.FC = () => {
                     if (err) {
                         console.error("Google Drive API Error:", err);
                         alert(`Falha ao salvar no Google Drive: ${err.result.error.message}`);
+                        setDriveSaveState('idle');
                     } else {
-                        alert("Backup salvo no Google Drive com sucesso!");
+                        setDriveSaveState('success');
                     }
-                    setIsSavingToDrive(false);
                 });
 
             } catch (e) {
                 console.error("Error saving to drive:", e);
                 alert("Ocorreu um erro inesperado ao salvar o backup.");
-                setIsSavingToDrive(false);
+                setDriveSaveState('idle');
             }
         };
 
+        if (window.gapi.client.getToken() === null) {
+            window.tokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+            window.tokenClient.requestAccessToken({ prompt: '' });
+        }
+    };
+
+    const handleRestoreFromDrive = () => {
+        if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE') || !GOOGLE_API_KEY || GOOGLE_API_KEY.startsWith('SUA_CHAVE_DE_API')) {
+            alert("Configuração de API do Google incompleta. Não é possível restaurar do Drive.");
+            return;
+        }
+
+        if (!isGapiLoaded || !isGisLoaded || !window.tokenClient) {
+            alert("A API do Google Drive ainda não foi carregada. Tente novamente em alguns segundos.");
+            return;
+        }
+
+        setDriveRestoreState('restoring');
+
+        window.tokenClient.callback = async (resp: any) => {
+            if (resp.error !== undefined) {
+                setDriveRestoreState('idle');
+                console.error("Google Auth Error:", resp);
+                alert(`Erro de autenticação com o Google: ${resp.error}.`);
+                return;
+            }
+
+            try {
+                const listResponse = await window.gapi.client.drive.files.list({
+                    q: "name contains 'descontsaude_backup_' and mimeType='application/json' and trashed=false",
+                    orderBy: 'createdTime desc',
+                    pageSize: 1,
+                    fields: 'files(id, name, createdTime)'
+                });
+
+                const files = listResponse.result.files;
+                if (!files || files.length === 0) {
+                    alert("Nenhum backup encontrado no Google Drive.");
+                    setDriveRestoreState('idle');
+                    return;
+                }
+
+                const latestFile = files[0];
+                const fileDate = new Date(latestFile.createdTime).toLocaleString('pt-BR');
+                
+                if (window.confirm(`Deseja restaurar o backup de ${fileDate} (${latestFile.name})? \n\nTODOS os dados atuais serão substituídos. Esta ação é irreversível.`)) {
+                    const getResponse = await window.gapi.client.drive.files.get({
+                        fileId: latestFile.id,
+                        alt: 'media'
+                    });
+                    
+                    const backupData = JSON.parse(getResponse.body);
+                    
+                    setBackupData(backupData);
+                    alert("Backup restaurado com sucesso! A página será recarregada para aplicar as mudanças.");
+                    window.location.reload();
+                } else {
+                     setDriveRestoreState('idle');
+                }
+
+            } catch (err: any) {
+                console.error("Error restoring from drive:", err);
+                const errorMessage = err.result?.error?.message || err.message || "Ocorreu um erro inesperado.";
+                alert(`Falha ao restaurar do Google Drive: ${errorMessage}`);
+                setDriveRestoreState('idle');
+            }
+        };
+        
         if (window.gapi.client.getToken() === null) {
             window.tokenClient.requestAccessToken({ prompt: 'consent' });
         } else {
@@ -347,26 +440,38 @@ const AdminDashboard: React.FC = () => {
                         <h2 className="text-3xl font-bold text-ds-vinho">Painel Administrativo</h2>
                         <div className="flex items-center gap-2 mt-4 sm:mt-0 flex-wrap justify-center">
                             <button
+                                onClick={handleSaveToDrive}
+                                disabled={driveSaveState !== 'idle'}
+                                className={`flex items-center text-white font-bold py-2 px-4 rounded-full transition-colors text-sm disabled:opacity-75 ${
+                                    driveSaveState === 'success' ? 'bg-green-500' : 'bg-gray-700 hover:bg-gray-800'
+                                }`}
+                            >
+                                {driveSaveState === 'idle' && <><DriveIcon /> Salvar no Drive</>}
+                                {driveSaveState === 'saving' && <><ButtonSpinner /> Salvando...</>}
+                                {driveSaveState === 'success' && <><CheckIcon /> Salvo!</>}
+                            </button>
+                            <button
+                                onClick={handleRestoreFromDrive}
+                                disabled={driveRestoreState === 'restoring'}
+                                className="flex items-center bg-yellow-500 text-white font-bold py-2 px-4 rounded-full hover:bg-yellow-600 transition-colors text-sm disabled:opacity-75"
+                            >
+                                {driveRestoreState === 'restoring' 
+                                    ? <><ButtonSpinner /> Buscando...</> 
+                                    : <><RestoreFromDriveIcon /> Restaurar do Drive</>}
+                            </button>
+                             <button
                                 onClick={handleDownloadBackup}
                                 className="flex items-center bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600 transition-colors text-sm"
                             >
                                 <DownloadIcon />
-                                Download Backup
-                            </button>
-                             <button
-                                onClick={handleSaveToDrive}
-                                disabled={isSavingToDrive}
-                                className="flex items-center bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-sm disabled:bg-gray-400"
-                            >
-                                <DriveIcon />
-                                {isSavingToDrive ? 'Salvando...' : 'Salvar no Drive'}
+                                Backup Local
                             </button>
                             <button
                                 onClick={handleRestoreClick}
                                 className="flex items-center bg-green-500 text-white font-bold py-2 px-4 rounded-full hover:bg-green-600 transition-colors text-sm"
                             >
                                 <UploadIcon />
-                                Restaurar Backup
+                                Restaurar Local
                             </button>
                             <input
                                 type="file"
