@@ -1,32 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Payment, Client } from '../../types';
-import { getAllPayments, getClients, updatePaymentStatus } from '../../services/apiService';
+import { updatePaymentStatus } from '../../services/apiService';
+import { useData } from '../../context/DataContext';
 import Card from '../common/Card';
 import Spinner from '../common/Spinner';
 import PaymentReceiptModal from './PaymentReceiptModal';
 
-const PaymentReports: React.FC = () => {
-    const [payments, setPayments] = useState<Payment[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+const PaymentReports: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) => {
+    const { payments, clients, isLoadingData } = useData();
     const [filterStatus, setFilterStatus] = useState<Payment['status'] | 'all'>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
-    const [isUpdating, setIsUpdating] = useState<string | null>(null); // paymentId of payment being updated
-
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            const [paymentsData, clientsData] = await Promise.all([
-                getAllPayments(),
-                getClients()
-            ]);
-            setPayments(paymentsData);
-            setClients(clientsData);
-            setLoading(false);
-        };
-        fetchData();
-    }, []);
+    const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
     const clientMap = useMemo(() => {
         return clients.reduce((acc, client) => {
@@ -49,31 +34,23 @@ const PaymentReports: React.FC = () => {
             );
         }
         
-        return filtered.sort((a,b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+        return [...filtered].sort((a,b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
     }, [payments, filterStatus, searchTerm, clientMap]);
 
     const getStatusStyles = (status: Payment['status']) => {
         switch (status) {
-            case 'paid':
-                return 'bg-green-100 text-green-800 border-green-300';
-            case 'pending':
-                return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-            case 'overdue':
-                return 'bg-red-100 text-red-800 border-red-300';
-            default:
-                return 'bg-gray-100 text-gray-800 border-gray-300';
+            case 'paid': return 'bg-green-100 text-green-800 border-green-300';
+            case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+            case 'overdue': return 'bg-red-100 text-red-800 border-red-300';
+            default: return 'bg-gray-100 text-gray-800 border-gray-300';
         }
     };
     
     const handleStatusChange = async (paymentId: string, newStatus: Payment['status']) => {
         setIsUpdating(paymentId);
         try {
-            const updatedPayment = await updatePaymentStatus(paymentId, newStatus);
-            if (updatedPayment) {
-                setPayments(prevPayments => 
-                    prevPayments.map(p => p.id === paymentId ? updatedPayment : p)
-                );
-            }
+            await updatePaymentStatus(paymentId, newStatus);
+            onUpdate(); // Reload data in the context
         } catch (error) {
             console.error("Failed to update payment status:", error);
             alert("Erro ao atualizar status do pagamento.");
@@ -81,7 +58,6 @@ const PaymentReports: React.FC = () => {
             setIsUpdating(null);
         }
     };
-
 
     return (
         <>
@@ -106,7 +82,7 @@ const PaymentReports: React.FC = () => {
                     </select>
                 </div>
                 
-                {loading ? <Spinner /> : (
+                {isLoadingData ? <Spinner /> : (
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">

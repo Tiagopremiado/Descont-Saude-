@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Client } from '../../types';
-import { getClients } from '../../services/apiService';
+import { useData } from '../../context/DataContext';
 import Card from '../common/Card';
 import Spinner from '../common/Spinner';
 import AddClientModal from './AddClientModal';
@@ -8,7 +8,7 @@ import ClientDetailModal from './ClientDetailModal';
 
 interface ClientManagementProps {
     initialClients: Client[];
-    onClientsChange: (clients: Client[]) => void;
+    onClientsChange: () => void; // Now a reload function
     isLoading: boolean;
     filterPending: boolean;
     setFilterPending: (filter: boolean) => void;
@@ -19,12 +19,13 @@ const CLIENTS_PER_PAGE = 50;
 
 const ClientManagement: React.FC<ClientManagementProps> = ({ 
     initialClients, 
-    onClientsChange,
+    onClientsChange: reloadClients,
     isLoading,
     filterPending,
     setFilterPending,
     onShowGenerationResult
 }) => {
+    const { setDirty } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -67,21 +68,17 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
         return fullyFilteredClients.slice(startIndex, endIndex);
     }, [fullyFilteredClients, currentPage]);
 
-
-    const refreshClients = async () => {
-        const clientData = await getClients();
-        onClientsChange(clientData);
-    };
-
     const handleClientAdded = (newClient: Client) => {
         setIsAddModalOpen(false);
-        refreshClients();
+        reloadClients();
+        setDirty(true);
         onShowGenerationResult(newClient);
     };
     
     const handleDetailModalClose = () => {
         setSelectedClient(null);
-        refreshClients();
+        reloadClients();
+        setDirty(true);
     }
 
     const getStatusChip = (status: Client['status']) => {
