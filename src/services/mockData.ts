@@ -82,6 +82,7 @@ const initialClients: Client[] = rawClients.map((c: any, index: number) => ({
   salesRep: 'TIAGO SILVA',
   status: 'active',
   dependents: parseDependents(c),
+  annotations: c['Anotações'] || '',
 }));
 
 const initialDoctors: Doctor[] = [

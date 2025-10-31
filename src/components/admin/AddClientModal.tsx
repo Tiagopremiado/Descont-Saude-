@@ -58,6 +58,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
     promotion: true,
     salesRep: 'TIAGO SILVA',
     status: 'active',
+    annotations: '',
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -88,7 +89,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
   };
   const addDependentRow = () => { setDependents([...dependents, { name: '', birthDate: '' }]); };
   const removeDependentRow = (index: number) => { setDependents(dependents.filter((_, i) => i !== index)); };
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     if (name === 'cpf') {
         setFormData(prev => ({ ...prev, [name]: formatCPF(value) }));
@@ -241,6 +242,21 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
                             <span className={labelClass}>Promoção Ativa</span>
                         </label>
                     </div>
+                </div>
+            </fieldset>
+
+            <fieldset disabled={isSaving}>
+                <legend className="text-lg font-semibold text-ds-vinho mb-2">Anotações (Opcional)</legend>
+                <div>
+                    <label htmlFor="add-annotations" className={labelClass}>Observações Iniciais</label>
+                    <textarea 
+                        name="annotations" 
+                        id="add-annotations" 
+                        value={formData.annotations} 
+                        onChange={handleChange} 
+                        className={`${inputClass} min-h-[80px]`}
+                        placeholder="Ex: Cliente pediu para ligar após as 18h, tem interesse no plano odontológico no futuro, etc."
+                    />
                 </div>
             </fieldset>
             

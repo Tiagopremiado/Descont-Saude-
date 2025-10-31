@@ -38,7 +38,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
     setActiveTab('data'); // Reset to first tab when client changes
   }, [client]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     if (name === 'cpf') {
@@ -218,6 +218,22 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                     <option value="pending">Pendente</option>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+                    <hr/>
+                    {/* Annotations Section */}
+                    <div>
+                        <h4 className="font-bold text-gray-700 mb-2">Anotações e Solicitações</h4>
+                        <div>
+                            <label htmlFor="edit-annotations" className={labelClass}>Observações sobre o cliente</label>
+                            <textarea 
+                                name="annotations" 
+                                id="edit-annotations" 
+                                value={formData.annotations || ''} 
+                                onChange={handleChange} 
+                                className={`${inputClass} min-h-[100px]`} 
+                                placeholder="Adicione observações, solicitações do cliente, ou informações de contato importantes..."
+                            />
                         </div>
                     </div>
                     </fieldset>

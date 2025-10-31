@@ -42,6 +42,7 @@ export interface Client {
   salesRep: string;
   status: 'active' | 'pending' | 'inactive';
   dependents: Dependent[];
+  annotations: string;
 }
 
 export interface Payment {
