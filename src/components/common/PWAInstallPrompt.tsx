@@ -42,7 +42,7 @@ const PWAInstallPrompt: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-50 animate-slide-up border-t border-gray-200">
+    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-40 animate-slide-up border-t border-gray-200">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-ds-vinho hidden sm:block" viewBox="0 0 20 20" fill="currentColor">
