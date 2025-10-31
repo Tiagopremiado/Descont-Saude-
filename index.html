@@ -50,31 +50,25 @@
         color: #6b7280; /* Tailwind's gray-500 */
         opacity: 1; /* Override Firefox's lower opacity */
       }
-
-      /* Subtle focus animation for form elements */
-      input, select, textarea {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-      }
-
-      input:focus, select:focus, textarea:focus {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(208, 171, 106, 0.25); /* Subtle glow with brand color */
-      }
     </style>
 
     <!-- PDF Generation Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-<script type="importmap">
+    <!-- Google API Libraries -->
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+    <script async defer src="https://accounts.google.com/gsi/client"></script>
+
+  <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "vite": "https://aistudiocdn.com/vite@^7.1.12",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.1.12",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
     "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.1.0"
   }
 }
@@ -82,6 +76,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

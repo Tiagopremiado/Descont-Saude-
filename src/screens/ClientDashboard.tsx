@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import type { Client } from '../types';
 import { getClientById } from '../services/apiService';
 import Spinner from '../components/common/Spinner';
@@ -16,7 +17,8 @@ import DigitalCards from '../components/client/DigitalCards';
 type ClientTab = 'home' | 'payments' | 'dependents' | 'doctors' | 'rating' | 'history' | 'profile' | 'cards';
 
 const ClientDashboard: React.FC = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
+    const { isDirty, setDirty } = useData();
     const [client, setClient] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<ClientTab>('home');
@@ -38,17 +40,24 @@ const ClientDashboard: React.FC = () => {
         };
         initialFetch();
         
-        // Adiciona um listener para recarregar os dados quando o usuário volta para a aba
         window.addEventListener('focus', fetchClientData);
 
-        // Limpa o listener ao desmontar o componente para evitar memory leaks
         return () => {
             window.removeEventListener('focus', fetchClientData);
         };
     }, [user, fetchClientData]);
     
-    // FIX: Replaced JSX.Element with React.ReactElement to resolve the "Cannot find namespace 'JSX'" error.
-    // This ensures the type for the icon prop is correctly recognized from the imported React module.
+    const handleLogoutRequest = () => {
+        if (isDirty) {
+             if (window.confirm("Você tem alterações não salvas. Deseja sair mesmo assim?")) {
+                setDirty(false);
+                logout();
+            }
+        } else {
+            logout();
+        }
+    };
+    
     const TabButton: React.FC<{tab: ClientTab, label: string, icon: React.ReactElement}> = ({ tab, label, icon }) => (
          <button
             onClick={() => setActiveTab(tab)}
@@ -74,7 +83,7 @@ const ClientDashboard: React.FC = () => {
                         <div className="mt-4 space-y-2">
                             <p><strong>Plano:</strong> {client.plan}</p>
                             <p><strong>Status:</strong> <span className="font-bold text-green-600 capitalize">{client.status}</span></p>
-                            <p><strong>Dependentes:</strong> {client.dependents.length}</p>
+                            <p><strong>Dependentes Ativos:</strong> {client.dependents.filter(d => d.status === 'active').length}</p>
                             <p className="mt-4 text-sm text-ds-dourado italic">"Cuidar de você é o nosso plano."</p>
                         </div>
                     </Card>
@@ -100,7 +109,7 @@ const ClientDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <Header />
+            <Header onLogoutRequest={handleLogoutRequest} />
             <main className="p-4 sm:p-8">
                 <div className="max-w-5xl mx-auto">
                     {loading ? <Spinner /> : client && (

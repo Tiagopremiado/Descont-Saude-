@@ -196,7 +196,6 @@ export const generateCustomCharge = async (clientId: string, amount: number, des
     return JSON.parse(JSON.stringify(newPayment));
 };
 
-// FIX: Added missing updatePaymentStatus function.
 export const updatePaymentStatus = async (paymentId: string, status: Payment['status']): Promise<Payment | null> => {
     await apiDelay(400);
     const paymentIndex = MOCK_PAYMENTS.findIndex(p => p.id === paymentId);
@@ -212,7 +211,6 @@ export const updatePaymentStatus = async (paymentId: string, status: Payment['st
 
 const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-// FIX: Added missing generateAnnualCarnet function.
 export const generateAnnualCarnet = async (clientId: string, year: number): Promise<Payment[]> => {
     await apiDelay(1500);
     const client = MOCK_CLIENTS.find(c => c.id === clientId);

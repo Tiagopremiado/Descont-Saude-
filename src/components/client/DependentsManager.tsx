@@ -58,9 +58,33 @@ const DependentsManager: React.FC<DependentsManagerProps> = ({ client: initialCl
       if (updatedClient) {
         setClient(updatedClient);
       }
+
+      // --- WhatsApp Integration ---
+      const titular = client;
+      const dependente = dependentForConfirmation;
+      const dataNascimento = new Date(dependente.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+
+      const message = `=== NOVA SOLICITAÇÃO DE DEPENDENTE ===
+
+*Titular:* ${titular.name}
+*CPF do Titular:* ${titular.cpf}
+
+--- Dados do Dependente ---
+*Nome:* ${dependente.name}
+*CPF:* ${dependente.cpf}
+*Data de Nasc.:* ${dataNascimento}
+*Parentesco:* ${dependente.relationship}`;
+
+      const whatsappNumber = "5553991560861";
+      const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      
+      window.open(url, '_blank', 'noopener,noreferrer');
+      // --- End of WhatsApp Integration ---
+
       handleCloseAndReset();
     } catch (error) {
       console.error("Failed to request dependent addition", error);
+      alert("Ocorreu um erro ao enviar sua solicitação. Por favor, tente novamente.");
     } finally {
       setIsSaving(false);
     }
