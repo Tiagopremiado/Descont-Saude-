@@ -89,7 +89,7 @@ const ClientDashboard: React.FC = () => {
                     </Card>
                 );
             case 'payments':
-                return <PaymentHistory clientId={client.id} />;
+                return <PaymentHistory client={client} />;
             case 'dependents':
                 return <DependentsManager client={client} />;
             case 'doctors':
