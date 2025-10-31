@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Client, Payment } from '../../types';
-import { getPaymentsByClientId, generateNewInvoice, updatePaymentStatus } from '../../services/apiService';
+import { getPaymentsByClientId, generateNewInvoice, updatePaymentStatus, generateAnnualCarnet } from '../../services/apiService';
 import Spinner from '../common/Spinner';
 
 const ButtonSpinner = () => (
@@ -18,6 +18,10 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
     const [newInvoiceMonth, setNewInvoiceMonth] = useState('');
     const [newInvoiceYear, setNewInvoiceYear] = useState(new Date().getFullYear());
     const [isGenerating, setIsGenerating] = useState(false);
+    
+    const [carnetYear, setCarnetYear] = useState(new Date().getFullYear() + 1);
+    const [isGeneratingCarnet, setIsGeneratingCarnet] = useState(false);
+
 
     const fetchPayments = async () => {
         setLoading(true);
@@ -65,6 +69,29 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
             setIsGenerating(false);
         }
     };
+
+    const handleGenerateCarnet = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!carnetYear) return;
+        
+        const existingPayments = payments.filter(p => p.year === carnetYear).length;
+        if (existingPayments > 0) {
+            if (!window.confirm(`Já existem ${existingPayments} mensalidades para ${carnetYear}. Deseja gerar apenas as faltantes?`)) {
+                return;
+            }
+        }
+
+        setIsGeneratingCarnet(true);
+        try {
+            await generateAnnualCarnet(client.id, carnetYear);
+            await fetchPayments();
+        } catch(error) {
+            console.error("Failed to generate carnet", error);
+            alert("Erro ao gerar carnê.");
+        } finally {
+            setIsGeneratingCarnet(false);
+        }
+    };
     
     const getStatusStyles = (status: Payment['status']) => {
         switch (status) {
@@ -80,25 +107,40 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
 
     return (
         <div className="space-y-6">
-            <form onSubmit={handleGenerateInvoice} className="p-4 bg-gray-50 rounded-lg border">
-                <h4 className="font-semibold text-gray-800 mb-2">Gerar Nova Mensalidade</h4>
-                <div className="flex items-end gap-3">
-                    <div className="flex-grow">
-                        <label htmlFor="new-month" className="text-sm font-medium text-gray-700">Mês</label>
-                        <select id="new-month" value={newInvoiceMonth} onChange={e => setNewInvoiceMonth(e.target.value)} required className={inputClass}>
-                            <option value="">Selecione...</option>
-                            {months.map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleGenerateInvoice} className="p-4 bg-gray-50 rounded-lg border">
+                    <h4 className="font-semibold text-gray-800 mb-2">Gerar Mensalidade Individual</h4>
+                    <div className="flex items-end gap-3">
+                        <div className="flex-grow">
+                            <label htmlFor="new-month" className="text-sm font-medium text-gray-700">Mês</label>
+                            <select id="new-month" value={newInvoiceMonth} onChange={e => setNewInvoiceMonth(e.target.value)} required className={inputClass}>
+                                <option value="">Selecione...</option>
+                                {months.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="new-year" className="text-sm font-medium text-gray-700">Ano</label>
+                            <input id="new-year" type="number" value={newInvoiceYear} onChange={e => setNewInvoiceYear(parseInt(e.target.value))} required className={`${inputClass} w-28`} />
+                        </div>
+                        <button type="submit" disabled={isGenerating} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 flex items-center disabled:opacity-75 h-10">
+                           {isGenerating && <ButtonSpinner />} {isGenerating ? 'Gerando' : 'Gerar'}
+                        </button>
                     </div>
-                    <div>
-                        <label htmlFor="new-year" className="text-sm font-medium text-gray-700">Ano</label>
-                        <input id="new-year" type="number" value={newInvoiceYear} onChange={e => setNewInvoiceYear(parseInt(e.target.value))} required className={`${inputClass} w-28`} />
+                </form>
+
+                 <form onSubmit={handleGenerateCarnet} className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-gray-800 mb-2">Gerar Carnê Anual</h4>
+                    <div className="flex items-end gap-3">
+                        <div className="flex-grow">
+                            <label htmlFor="carnet-year" className="text-sm font-medium text-gray-700">Ano do Carnê</label>
+                            <input id="carnet-year" type="number" value={carnetYear} onChange={e => setCarnetYear(parseInt(e.target.value))} required className={`${inputClass} w-full`} />
+                        </div>
+                        <button type="submit" disabled={isGeneratingCarnet} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-75 h-10">
+                           {isGeneratingCarnet && <ButtonSpinner />} {isGeneratingCarnet ? 'Gerando...' : 'Gerar Ano Todo'}
+                        </button>
                     </div>
-                    <button type="submit" disabled={isGenerating} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 flex items-center disabled:opacity-75">
-                       {isGenerating && <ButtonSpinner />} {isGenerating ? 'Gerando' : 'Gerar'}
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
             
             <div>
                 <h4 className="font-semibold text-gray-800 mb-2">Histórico de Pagamentos</h4>

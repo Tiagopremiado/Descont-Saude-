@@ -176,16 +176,20 @@ export const generateAnnualCarnet = async (clientId: string, year: number): Prom
     const newPayments: Payment[] = [];
 
     for (let i = 0; i < 12; i++) {
-        const newPayment: Payment = {
-            id: `pay-${clientId}-${year}-${i}`,
-            clientId,
-            amount: client.monthlyFee,
-            month: months[i],
-            year: year,
-            dueDate: new Date(year, i, client.paymentDueDateDay).toISOString(),
-            status: 'pending',
-        };
-        newPayments.push(newPayment);
+        // Check if a payment for this month/year already exists to avoid duplicates
+        const existingPayment = MOCK_PAYMENTS.find(p => p.clientId === clientId && p.month === months[i] && p.year === year);
+        if (!existingPayment) {
+            const newPayment: Payment = {
+                id: `pay-${clientId}-${year}-${i}`,
+                clientId,
+                amount: client.monthlyFee,
+                month: months[i],
+                year: year,
+                dueDate: new Date(year, i, client.paymentDueDateDay).toISOString(),
+                status: 'pending',
+            };
+            newPayments.push(newPayment);
+        }
     }
 
     MOCK_PAYMENTS.push(...newPayments);
