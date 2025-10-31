@@ -19,7 +19,6 @@ declare global {
     interface Window {
         gapi: any;
         google: any;
-        tokenClient: any;
     }
 }
 
@@ -113,11 +112,7 @@ const AdminDashboard: React.FC = () => {
              window.gapi.client.init({ apiKey: GOOGLE_API_KEY, discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'], });
         }
     }, [isGapiLoaded]);
-    useEffect(() => {
-        if (isGisLoaded && GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE')) {
-            window.tokenClient = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: GOOGLE_DRIVE_SCOPE, callback: '', });
-        }
-    }, [isGisLoaded]);
+
     useEffect(() => {
         if (driveSaveState === 'success') {
             const timer = setTimeout(() => setDriveSaveState('idle'), 3000);
@@ -147,78 +142,157 @@ const AdminDashboard: React.FC = () => {
     const handleShowGenerationResult = (client: Client) => { setGeneratedClient(client); };
     
     const handleDownloadBackup = () => {
-        const backupData = { clients: MOCK_CLIENTS, doctors: MOCK_DOCTORS, payments: MOCK_PAYMENTS };
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
+        const backupData = {
+            clients: MOCK_CLIENTS,
+            doctors: MOCK_DOCTORS,
+            payments: MOCK_PAYMENTS,
+        };
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+    
         const link = document.createElement("a");
         const date = new Date().toISOString().slice(0, 10);
-        link.href = jsonString;
+        link.href = url;
         link.download = `descontsaude_backup_${date}.json`;
+    
+        document.body.appendChild(link);
         link.click();
+    
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         setDirty(false); // Mark changes as saved
     };
 
-    const handleSaveToDrive = async () => {
-        // This function now returns a promise
+    const handleSaveToDrive = () => {
         return new Promise<void>((resolve, reject) => {
             if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE') || !GOOGLE_API_KEY || GOOGLE_API_KEY.startsWith('SUA_CHAVE_DE_API')) {
-                alert("Configuração de API do Google incompleta!");
-                reject();
+                alert("Configuração de API do Google incompleta! Verifique o arquivo src/config.ts");
+                reject(new Error("Google API credentials are not configured."));
                 return;
             }
-            if (!isGapiLoaded || !isGisLoaded || !window.tokenClient) {
-                alert("A API do Google Drive ainda não foi carregada.");
-                reject();
+            if (!isGapiLoaded || !isGisLoaded) {
+                alert("A API do Google Drive ainda não foi carregada. Tente novamente em alguns segundos.");
+                reject(new Error("Google API scripts not loaded."));
                 return;
             }
+
             setDriveSaveState('saving');
-            window.tokenClient.callback = (resp: any) => {
-                if (resp.error !== undefined) {
-                    setDriveSaveState('idle');
-                    console.error("Google Auth Error:", resp);
-                    alert(`Erro de autenticação com o Google: ${resp.error}.`);
-                    reject();
-                    return;
-                }
-                // The rest of the save logic...
-                const backupData = { clients: MOCK_CLIENTS, doctors: MOCK_DOCTORS, payments: MOCK_PAYMENTS, };
-                const jsonString = JSON.stringify(backupData, null, 2);
-                const date = new Date().toISOString().slice(0, 10);
-                const fileName = `descontsaude_backup_${date}.json`;
-                const boundary = '-------314159265358979323846';
-                const delimiter = `\r\n--${boundary}\r\n`;
-                const close_delim = `\r\n--${boundary}--`;
-                const metadata = { name: fileName, mimeType: 'application/json' };
-                const multipartRequestBody = delimiter + 'Content-Type: application/json\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + jsonString + close_delim;
-                const request = window.gapi.client.request({
-                    'path': 'https://www.googleapis.com/upload/drive/v3/files',
-                    'method': 'POST',
-                    'params': {'uploadType': 'multipart'},
-                    'headers': { 'Content-Type': `multipart/related; boundary=${boundary}` },
-                    'body': multipartRequestBody
-                });
-                request.execute((file: any, err: any) => {
-                    if (err) {
-                        console.error("Google Drive API Error:", err);
-                        alert(`Falha ao salvar no Google Drive: ${err.result.error.message}`);
+            
+            const tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: GOOGLE_DRIVE_SCOPE,
+                callback: (resp: any) => {
+                    if (resp.error !== undefined) {
                         setDriveSaveState('idle');
-                        reject();
-                    } else {
-                        setDriveSaveState('success');
-                        setDirty(false); // Mark changes as saved
-                        resolve();
+                        console.error("Google Auth Error:", resp);
+                        alert(`Erro de autenticação com o Google: ${resp.error}. Verifique se pop-ups estão bloqueados.`);
+                        reject(resp.error);
+                        return;
                     }
-                });
-            };
+                    
+                    const backupData = { clients: MOCK_CLIENTS, doctors: MOCK_DOCTORS, payments: MOCK_PAYMENTS };
+                    const jsonString = JSON.stringify(backupData, null, 2);
+                    const date = new Date().toISOString().slice(0, 10);
+                    const fileName = `descontsaude_backup_${date}.json`;
+                    const boundary = '-------314159265358979323846';
+                    const delimiter = `\r\n--${boundary}\r\n`;
+                    const close_delim = `\r\n--${boundary}--`;
+                    const metadata = { name: fileName, mimeType: 'application/json' };
+                    const multipartRequestBody = delimiter + 'Content-Type: application/json\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + jsonString + close_delim;
+
+                    const request = window.gapi.client.request({
+                        'path': 'https://www.googleapis.com/upload/drive/v3/files',
+                        'method': 'POST',
+                        'params': { 'uploadType': 'multipart' },
+                        'headers': { 'Content-Type': `multipart/related; boundary=${boundary}` },
+                        'body': multipartRequestBody
+                    });
+
+                    request.execute((file: any, err: any) => {
+                        if (err) {
+                            console.error("Google Drive API Error:", err);
+                            alert(`Falha ao salvar no Google Drive: ${err.result.error.message}`);
+                            setDriveSaveState('idle');
+                            reject(err);
+                        } else {
+                            setDriveSaveState('success');
+                            setDirty(false);
+                            resolve();
+                        }
+                    });
+                },
+            });
+
             if (window.gapi.client.getToken() === null) {
-                window.tokenClient.requestAccessToken({ prompt: 'consent' });
+                tokenClient.requestAccessToken({ prompt: 'consent' });
             } else {
-                window.tokenClient.requestAccessToken({ prompt: '' });
+                tokenClient.requestAccessToken({ prompt: '' });
             }
         });
     };
 
-    // Other handlers (restore, reset, etc.) remain largely the same as they cause a reload...
-    const handleRestoreFromDrive = () => { /* ... existing logic ... */ };
+    const handleRestoreFromDrive = () => {
+        if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('SEU_ID_DE_CLIENTE') || !GOOGLE_API_KEY || GOOGLE_API_KEY.startsWith('SUA_CHAVE_DE_API')) {
+            alert("Configuração de API do Google incompleta! Verifique o arquivo src/config.ts");
+            return;
+        }
+        if (!isGapiLoaded || !isGisLoaded) {
+            alert("A API do Google Drive ainda não foi carregada. Tente novamente em alguns segundos.");
+            return;
+        }
+
+        setDriveRestoreState('restoring');
+
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: GOOGLE_DRIVE_SCOPE,
+            callback: async (resp: any) => {
+                if (resp.error !== undefined) {
+                    setDriveRestoreState('idle');
+                    console.error("Google Auth Error:", resp);
+                    alert(`Erro de autenticação com o Google: ${resp.error}.`);
+                    return;
+                }
+                
+                try {
+                    const res = await window.gapi.client.drive.files.list({
+                        'pageSize': 1,
+                        'fields': "nextPageToken, files(id, name)",
+                        'q': "name contains 'descontsaude_backup_'",
+                        'orderBy': 'modifiedTime desc'
+                    });
+
+                    if (res.result.files && res.result.files.length > 0) {
+                        const file = res.result.files[0];
+                        if (window.confirm(`Restaurar o backup mais recente encontrado: "${file.name}"? TODOS os dados atuais serão substituídos.`)) {
+                            const fileRes = await window.gapi.client.drive.files.get({ fileId: file.id, alt: 'media' });
+                            const backupData = JSON.parse(fileRes.body);
+                            setBackupData(backupData);
+                            alert("Backup restaurado com sucesso! A página será recarregada.");
+                            window.location.reload();
+                        } else {
+                           setDriveRestoreState('idle');
+                        }
+                    } else {
+                        alert("Nenhum arquivo de backup da Descont'Saúde encontrado no seu Google Drive.");
+                        setDriveRestoreState('idle');
+                    }
+                } catch (err: any) {
+                    console.error("Google Drive API Error:", err);
+                    alert(`Falha ao buscar backups: ${err.result?.error?.message || err.message}`);
+                    setDriveRestoreState('idle');
+                }
+            },
+        });
+        
+        if (window.gapi.client.getToken() === null) {
+            tokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+            tokenClient.requestAccessToken({ prompt: '' });
+        }
+    };
+
     const handleRestoreClick = () => { fileInputRef.current?.click(); };
     const handleResetData = () => { if (window.confirm("...")) { resetData(); alert("..."); window.location.reload(); }};
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { /* ... existing logic ... */ };
