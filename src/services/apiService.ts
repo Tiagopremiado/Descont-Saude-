@@ -49,7 +49,7 @@ export const resetClientPassword = async (clientId: string): Promise<{ success: 
     await apiDelay(500);
     // In a real app, this would trigger a password reset flow (e.g., send an email).
     // Here, we just log it, as the mock auth uses a static password.
-    console.log(`Password for client ${clientId} has been reset to the default 'password123'.`);
+    console.log(`Password for client ${clientId} has been reset.`);
     return { success: true };
 };
 
@@ -69,6 +69,15 @@ export const requestAddDependent = async (clientId: string, dependentData: Omit<
     };
     
     MOCK_CLIENTS[clientIndex].dependents.push(newDependent);
+
+    // Create a reminder for the admin
+    await addReminder({
+        description: `Aprovar novo dependente "${newDependent.name}"`,
+        priority: 'medium',
+        clientId: clientId,
+        clientName: MOCK_CLIENTS[clientIndex].name
+    });
+
     return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
@@ -165,39 +174,6 @@ export const generateNewInvoice = async (clientId: string, month: string, year: 
     return JSON.parse(JSON.stringify(newPayment));
 };
 
-export const generateAnnualCarnet = async (clientId: string, year: number): Promise<Payment[]> => {
-    await apiDelay(1500); // Simulate a longer process
-    const client = MOCK_CLIENTS.find(c => c.id === clientId);
-    if (!client) {
-        throw new Error("Client not found");
-    }
-
-    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const newPayments: Payment[] = [];
-
-    for (let i = 0; i < 12; i++) {
-        // Check if a payment for this month/year already exists to avoid duplicates
-        const existingPayment = MOCK_PAYMENTS.find(p => p.clientId === clientId && p.month === months[i] && p.year === year);
-        if (!existingPayment) {
-            const newPayment: Payment = {
-                id: `pay-${clientId}-${year}-${i}`,
-                clientId,
-                amount: client.monthlyFee,
-                month: months[i],
-                year: year,
-                dueDate: new Date(year, i, client.paymentDueDateDay).toISOString(),
-                status: 'pending',
-            };
-            newPayments.push(newPayment);
-        }
-    }
-
-    MOCK_PAYMENTS.push(...newPayments);
-    
-    return JSON.parse(JSON.stringify(newPayments));
-};
-
-
 export const generateCustomCharge = async (clientId: string, amount: number, description: string): Promise<Payment> => {
     await apiDelay(800);
     const client = MOCK_CLIENTS.find(c => c.id === clientId);
@@ -220,14 +196,52 @@ export const generateCustomCharge = async (clientId: string, amount: number, des
     return JSON.parse(JSON.stringify(newPayment));
 };
 
+// FIX: Added missing updatePaymentStatus function.
 export const updatePaymentStatus = async (paymentId: string, status: Payment['status']): Promise<Payment | null> => {
     await apiDelay(400);
     const paymentIndex = MOCK_PAYMENTS.findIndex(p => p.id === paymentId);
     if (paymentIndex === -1) {
+        console.error(`Payment with id ${paymentId} not found.`);
         return null;
     }
+
     MOCK_PAYMENTS[paymentIndex].status = status;
+    
     return JSON.parse(JSON.stringify(MOCK_PAYMENTS[paymentIndex]));
+};
+
+const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+// FIX: Added missing generateAnnualCarnet function.
+export const generateAnnualCarnet = async (clientId: string, year: number): Promise<Payment[]> => {
+    await apiDelay(1500);
+    const client = MOCK_CLIENTS.find(c => c.id === clientId);
+    if (!client) throw new Error("Client not found");
+
+    const existingPaymentsForYear = MOCK_PAYMENTS.filter(p => p.clientId === clientId && p.year === year);
+    const existingMonths = existingPaymentsForYear.map(p => p.month);
+    
+    const newPayments: Payment[] = [];
+
+    for (const month of months) {
+        if (!existingMonths.includes(month)) {
+            const monthIndex = monthMap[month];
+            const newPayment: Payment = {
+                id: `pay-${client.id}-${year}-${month}`,
+                clientId,
+                amount: client.monthlyFee,
+                month,
+                year,
+                dueDate: new Date(year, monthIndex, client.paymentDueDateDay).toISOString(),
+                status: 'pending',
+            };
+            newPayments.push(newPayment);
+        }
+    }
+
+    MOCK_PAYMENTS.push(...newPayments);
+
+    return JSON.parse(JSON.stringify(newPayments));
 };
 
 
@@ -267,7 +281,6 @@ export const deleteDoctor = async (id: string): Promise<{ success: true }> => {
     MOCK_DOCTORS.splice(docIndex, 1);
     return { success: true };
 };
-
 
 // --- Reminder Services ---
 
