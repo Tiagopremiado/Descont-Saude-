@@ -23,7 +23,31 @@ const loadScript = (src: string): Promise<void> => {
   });
 };
 
-// FIX: Added helper function to get Google Drive token with user consent.
+let isGoogleClientInitialized = false;
+
+// Centralized function to ensure Google API clients are ready
+const initializeGoogleClient = async () => {
+    if (isGoogleClientInitialized) {
+        return;
+    }
+    try {
+        await loadScript('https://apis.google.com/js/api.js');
+        await new Promise<void>(resolve => window.gapi.load('client', resolve));
+        await window.gapi.client.init({
+            apiKey: GOOGLE_API_KEY,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        });
+        await loadScript('https://accounts.google.com/gsi/client');
+        isGoogleClientInitialized = true;
+        console.log("Google API Client initialized successfully.");
+    } catch (error) {
+        console.error("Failed to initialize Google API client:", error);
+        isGoogleClientInitialized = false; // Reset on failure
+        throw new Error('Falha ao inicializar a API do Google. Verifique sua conexão e tente novamente.');
+    }
+};
+
+
 // Helper to get Google Drive token with user consent if needed
 const getDriveToken = (): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -61,9 +85,11 @@ const getDriveToken = (): Promise<any> => {
     });
 };
 
-// FIX: Added missing 'saveBackupToDrive' function to save data to Google Drive.
 // Main function to save backup data to Google Drive
 export const saveBackupToDrive = async () => {
+    // Ensure the client is initialized before proceeding
+    await initializeGoogleClient();
+
     if (!window.gapi || !window.gapi.client || !window.google) {
         throw new Error('Google API client not loaded. Please try again.');
     }
@@ -4012,31 +4038,6 @@ const rawClients = [
  }
 ];
 
-const initialClients: Client[] = rawClients.map((c: any, index: number) => ({
-  id: c['Código'] || `client${index}`,
-  contractNumber: `019${String(c['CPF/CNPJ'] || '').replace(/\D/g, '').slice(-8) || String(Date.now() + index).slice(-8)}`,
-  name: c['Nome'] || 'Nome não informado',
-  cpf: String(c['CPF/CNPJ'] || '').replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') || '000.000.000-00',
-  birthDate: '1990-01-01T00:00:00.000Z',
-  gender: 'X',
-  phone: `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
-  whatsapp: `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
-  email: c['E-mail'] || 'email@naoinformado.com',
-  address: c['Endereço'] || 'Não informado',
-  addressNumber: c['Número'] || 'S/N',
-  neighborhood: c['Bairro'] || 'Não informado',
-  city: c['Cidade'] || 'Não informada',
-  plan: 'Plano Padrão',
-  monthlyFee: 26.00,
-  registrationFee: 0.00,
-  paymentDueDateDay: 20,
-  promotion: false,
-  salesRep: 'TIAGO SILVA',
-  status: 'active',
-  dependents: parseDependents(c),
-  annotations: c['Anotações'] || '',
-}));
-
 const initialDoctors: Doctor[] = [
   // Pedro Osório
   { id: 'doc1', name: 'Consultório Odontológico Aline Dias', specialty: 'Dentista', address: 'Rua Alberto Santos Dumont, 1610', city: 'Pedro Osório', phone: '(53) 99966-2292' },
@@ -4084,6 +4085,32 @@ const initialDoctors: Doctor[] = [
   // Piratini
   { id: 'doc32', name: 'Farmácia Agafarma', specialty: 'Farmácia', address: 'Rua Comendador Freitas, 219', city: 'Piratini', phone: '(53) 3257-1191' }
 ];
+
+const initialClients: Client[] = rawClients.map((c: any, index: number) => ({
+  id: c['Código'] || `client${index}`,
+  contractNumber: `019${String(c['CPF/CNPJ'] || '').replace(/\D/g, '').slice(-8) || String(Date.now() + index).slice(-8)}`,
+  name: c['Nome'] || 'Nome não informado',
+  cpf: String(c['CPF/CNPJ'] || '').replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') || '000.000.000-00',
+  birthDate: '1990-01-01T00:00:00.000Z',
+  gender: 'X',
+  phone: `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
+  whatsapp: `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
+  email: c['E-mail'] || 'email@naoinformado.com',
+  address: c['Endereço'] || 'Não informado',
+  addressNumber: c['Número'] || 'S/N',
+  neighborhood: c['Bairro'] || 'Não informado',
+  city: c['Cidade'] || 'Não informada',
+  plan: 'Plano Padrão',
+  monthlyFee: 26.00,
+  registrationFee: 0.00,
+  paymentDueDateDay: 20,
+  promotion: false,
+  salesRep: 'TIAGO SILVA',
+  status: 'active',
+  dependents: parseDependents(c),
+  annotations: c['Anotações'] || '',
+}));
+
 
 export let MOCK_CLIENTS: Client[] = [];
 export let MOCK_USERS: User[] = [];
@@ -4146,11 +4173,7 @@ export async function loadInitialData() {
     
     // 3. In the background, try to sync with Google Drive
     try {
-        await loadScript('https://apis.google.com/js/api.js');
-        await new Promise<void>(resolve => window.gapi.load('client', resolve));
-        await window.gapi.client.init({ apiKey: GOOGLE_API_KEY, discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']});
-
-        await loadScript('https://accounts.google.com/gsi/client');
+        await initializeGoogleClient();
 
         const localMeta = JSON.parse(localStorage.getItem(DRIVE_METADATA_KEY) || '{}');
 
