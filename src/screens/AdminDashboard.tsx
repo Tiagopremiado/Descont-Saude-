@@ -4,6 +4,7 @@ import ClientManagement from '../components/admin/ClientManagement';
 import PaymentReports from '../components/admin/PaymentReports';
 import DoctorManagement from '../components/admin/DoctorManagement';
 import ReminderManagement from '../components/admin/ReminderManagement';
+import InvoiceGeneration from '../components/admin/InvoiceGeneration';
 import GenerationResultModal from '../components/admin/GenerationResultModal';
 import { MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, setBackupData, resetData } from '../services/mockData';
 import { useData } from '../context/DataContext'; 
@@ -17,15 +18,15 @@ declare global {
     }
 }
 
-type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders';
+type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices';
 
 const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>;
 const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 9.414V13H5.5z" /><path d="M9 13h2v5H9v-5z" /></svg>;
 const ResetIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" /></svg>;
 
 const AdminDashboard: React.FC = () => {
-    const { clients, reminders, isLoadingData, reloadData } = useData();
-    const { logout } = useAuth();
+    const { clients, reminders, isLoadingData, reloadData, isDirty, setDirty } = useData();
+    const { logout } = useAuth(); 
     
     const [activeTab, setActiveTab] = useState<AdminTab>('clients');
     const [filterPending, setFilterPending] = useState(false);
@@ -41,7 +42,12 @@ const AdminDashboard: React.FC = () => {
     const pendingRemindersCount = useMemo(() => reminders.filter(r => r.status === 'pending').length, [reminders]);
 
     const handleLogoutRequest = () => {
-        if (window.confirm("Você tem certeza que deseja sair? As alterações não salvas podem ser perdidas se não estiverem sincronizadas com o Google Drive.")) {
+        if (isDirty) {
+            if (window.confirm("Você tem alterações não salvas. Elas são salvas automaticamente ao fechar a janela. Deseja sair mesmo assim?")) {
+                setDirty(false); // Acknowledge user's choice to leave
+                logout();
+            }
+        } else {
             logout();
         }
     };
@@ -50,6 +56,11 @@ const AdminDashboard: React.FC = () => {
     const handleTabClick = (tab: AdminTab) => { setActiveTab(tab); };
     const handleShowGenerationResult = (client: Client) => { setGeneratedClient(client); };
     
+    const handleDataUpdate = () => {
+        reloadData();
+        setDirty(true);
+    };
+
     const handleDownloadBackup = () => {
         const backupData = { clients: MOCK_CLIENTS, doctors: MOCK_DOCTORS, payments: MOCK_PAYMENTS };
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent( JSON.stringify(backupData, null, 2) )}`;
@@ -98,16 +109,17 @@ const AdminDashboard: React.FC = () => {
             case 'clients':
                 return <ClientManagement 
                             initialClients={clients} 
-                            onClientsChange={reloadData} 
+                            onClientsChange={handleDataUpdate} 
                             isLoading={isLoadingData} 
                             filterPending={filterPending}
                             setFilterPending={setFilterPending}
                             onShowGenerationResult={handleShowGenerationResult}
                         />;
             case 'reminders':
-                return <ReminderManagement clients={clients} onUpdate={reloadData} initialReminders={reminders} />;
-            case 'payments': return <PaymentReports onUpdate={reloadData} />;
-            case 'doctors': return <DoctorManagement onUpdate={reloadData} />;
+                return <ReminderManagement clients={clients} onUpdate={handleDataUpdate} initialReminders={reminders} />;
+            case 'payments': return <PaymentReports onUpdate={handleDataUpdate} />;
+            case 'doctors': return <DoctorManagement onUpdate={handleDataUpdate} />;
+            case 'invoices': return <InvoiceGeneration />;
             default: return null;
         }
     };
@@ -147,6 +159,7 @@ const AdminDashboard: React.FC = () => {
                             <TabButton tab="clients" label="Gerenciar Clientes" count={pendingClientItemsCount} />
                             <TabButton tab="reminders" label="Lembretes" count={pendingRemindersCount} />
                             <TabButton tab="payments" label="Relatório de Pagamentos" />
+                            <TabButton tab="invoices" label="Notas Fiscais" />
                             <TabButton tab="doctors" label="Guia Médico" />
                         </nav>
                     </div>

@@ -209,6 +209,20 @@ export const updatePaymentStatus = async (paymentId: string, status: Payment['st
     return JSON.parse(JSON.stringify(MOCK_PAYMENTS[paymentIndex]));
 };
 
+export const updatePaymentInvoiceStatus = async (paymentId: string, status: 'pending' | 'generated'): Promise<Payment | null> => {
+    await apiDelay(400);
+    const paymentIndex = MOCK_PAYMENTS.findIndex(p => p.id === paymentId);
+    if (paymentIndex === -1) {
+        console.error(`Payment with id ${paymentId} not found.`);
+        return null;
+    }
+
+    MOCK_PAYMENTS[paymentIndex].invoiceStatus = status;
+    
+    return JSON.parse(JSON.stringify(MOCK_PAYMENTS[paymentIndex]));
+};
+
+
 const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
 export const generateAnnualCarnet = async (clientId: string, year: number): Promise<Payment[]> => {

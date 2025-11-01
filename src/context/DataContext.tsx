@@ -41,6 +41,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initialize();
   }, [reloadData]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        // Save to local storage before leaving
+        const backupData = {
+          clients: MOCK_CLIENTS,
+          doctors: MOCK_DOCTORS,
+          payments: MOCK_PAYMENTS,
+        };
+        // This key matches the one in mockData.ts
+        localStorage.setItem('descontsaude_backup_data', JSON.stringify(backupData));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+
   return (
     <DataContext.Provider value={{ clients, doctors, payments, reminders, isLoadingData, isDirty, setDirty, reloadData }}>
       {children}

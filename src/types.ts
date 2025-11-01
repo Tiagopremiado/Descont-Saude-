@@ -53,6 +53,7 @@ export interface Payment {
   year: number;
   dueDate: string; // ISO string
   status: 'paid' | 'pending' | 'overdue';
+  invoiceStatus?: 'pending' | 'generated';
 }
 
 export interface Doctor {
