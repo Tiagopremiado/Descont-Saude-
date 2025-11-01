@@ -11,22 +11,13 @@ interface SyncStatus {
     type: 'success' | 'info' | 'error';
 }
 
-// Helper to load Google API scripts dynamically
-const loadScript = (src: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
-      return;
+declare global {
+    interface Window {
+        gapi: any;
+        google: any;
     }
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-    document.body.appendChild(script);
-  });
-};
+}
+
 
 let isGoogleClientInitialized = false;
 
@@ -36,13 +27,16 @@ const initializeGoogleClient = async () => {
         return;
     }
     try {
-        await loadScript('https://apis.google.com/js/api.js');
+        // Wait for the scripts from index.html to load via the global promises
+        await (window as any).gapiLoaded;
+        await (window as any).gsiLoaded;
+
         await new Promise<void>(resolve => window.gapi.load('client', resolve));
         await window.gapi.client.init({
             apiKey: GOOGLE_API_KEY,
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
         });
-        await loadScript('https://accounts.google.com/gsi/client');
+        
         isGoogleClientInitialized = true;
         console.log("Google API Client initialized successfully.");
     } catch (error) {
