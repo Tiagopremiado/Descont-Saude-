@@ -23,6 +23,134 @@ const loadScript = (src: string): Promise<void> => {
   });
 };
 
+// FIX: Added helper function to get Google Drive token with user consent.
+// Helper to get Google Drive token with user consent if needed
+const getDriveToken = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        try {
+            if (!window.google || !window.google.accounts) {
+                return reject(new Error('Google Identity Services not loaded.'));
+            }
+
+            const tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: GOOGLE_DRIVE_SCOPE,
+                callback: (tokenResponse: any) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        window.gapi.client.setToken(tokenResponse);
+                        resolve(tokenResponse);
+                    } else {
+                        reject(new Error('Failed to get access token from callback.'));
+                    }
+                },
+                error_callback: (error: any) => {
+                    console.error('Google Auth Error:', error);
+                    let message = 'Google Authentication failed.';
+                    if (error && error.type === 'popup_closed_by_user') {
+                        message = 'Login com Google cancelado pelo usuário.';
+                    } else if (error && (error.details || error.error)) {
+                        message = `Google Authentication failed: ${error.details || error.error}`;
+                    }
+                    reject(new Error(message));
+                }
+            });
+            tokenClient.requestAccessToken({ prompt: 'consent' });
+        } catch (e) {
+            reject(e);
+        }
+    });
+};
+
+// FIX: Added missing 'saveBackupToDrive' function to save data to Google Drive.
+// Main function to save backup data to Google Drive
+export const saveBackupToDrive = async () => {
+    if (!window.gapi || !window.gapi.client || !window.google) {
+        throw new Error('Google API client not loaded. Please try again.');
+    }
+
+    await getDriveToken();
+
+    const backupData = {
+        clients: MOCK_CLIENTS,
+        doctors: MOCK_DOCTORS,
+        payments: MOCK_PAYMENTS,
+    };
+    const backupContent = JSON.stringify(backupData, null, 2);
+
+    const driveFiles = await window.gapi.client.drive.files.list({
+        pageSize: 1,
+        fields: "files(id, name, modifiedTime)",
+        q: `name contains 'descontsaude_backup_' and trashed = false`,
+        orderBy: 'modifiedTime desc'
+    });
+
+    const latestFile = driveFiles.result.files?.[0];
+
+    const boundary = '-------314159265358979323846';
+    const delimiter = `\r\n--${boundary}\r\n`;
+    const close_delim = `\r\n--${boundary}--`;
+
+    let requestBody;
+    let path;
+    let method;
+
+    if (latestFile && latestFile.id) {
+        path = `/upload/drive/v3/files/${latestFile.id}?uploadType=multipart`;
+        method = 'PATCH';
+        const metadata = { mimeType: 'application/json' };
+
+        requestBody =
+            delimiter +
+            'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+            JSON.stringify(metadata) +
+            delimiter +
+            'Content-Type: application/json\r\n\r\n' +
+            backupContent +
+            close_delim;
+    } else {
+        const date = new Date().toISOString().slice(0, 10);
+        const fileName = `descontsaude_backup_${date}.json`;
+        path = '/upload/drive/v3/files?uploadType=multipart';
+        method = 'POST';
+        const metadata = {
+            name: fileName,
+            mimeType: 'application/json',
+        };
+
+        requestBody =
+            delimiter +
+            'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+            JSON.stringify(metadata) +
+            delimiter +
+            'Content-Type: application/json\r\n\r\n' +
+            backupContent +
+            close_delim;
+    }
+
+    const request = window.gapi.client.request({
+        'path': path,
+        'method': method,
+        'headers': {
+            'Content-Type': `multipart/related; boundary="${boundary}"`
+        },
+        'body': requestBody
+    });
+
+    return new Promise((resolve, reject) => {
+        request.execute((file: any, err: any) => {
+            if (err) {
+                console.error("Error saving to Drive:", err);
+                reject(err);
+            } else {
+                console.log("File saved to Drive:", file);
+                localStorage.setItem(DRIVE_METADATA_KEY, JSON.stringify({ modifiedTime: file.modifiedTime }));
+                resolve(file);
+            }
+        });
+    });
+};
+
+
 const parseDependents = (clientData: any): any[] => {
     const dependents = [];
     for (let i = 1; i <= 6; i++) {

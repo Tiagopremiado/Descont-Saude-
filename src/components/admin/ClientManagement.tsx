@@ -77,6 +77,7 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
     
     const handleDetailModalClose = () => {
         setSelectedClient(null);
+        // Data might have been changed in the modal, so we reload and mark as dirty
         reloadClients();
         setDirty(true);
     }
