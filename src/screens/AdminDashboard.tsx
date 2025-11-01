@@ -25,6 +25,17 @@ type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 
 const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>;
 const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 9.414V13H5.5z" /><path d="M9 13h2v5H9v-5z" /></svg>;
 const ResetIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" /></svg>;
+const GoogleDriveIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19.33,7.17H12.8L10.37,2.3A1.5,1.5,0,0,0,8.94,1.5H3.06A1.5,1.5,0,0,0,1.63,2.3L4.2,7.17H0.67a0.67,0.67,0,0,0-.57,1l6.5,11.5a0.67,0.67,0,0,0,1.14,0l3.8-6.75,3.8,6.75a0.67,0.67,0,0,0,1.14,0l6.5-11.5a0.67,0.67,0,0,0-.57-1Z"/>
+    </svg>
+);
+const ButtonSpinner = () => (
+    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
 
 const AdminDashboard: React.FC = () => {
     const { clients, reminders, isLoadingData, reloadData, isDirty, setDirty } = useData();
@@ -34,6 +45,7 @@ const AdminDashboard: React.FC = () => {
     const [filterPending, setFilterPending] = useState(false);
     const [generatedClient, setGeneratedClient] = useState<Client | null>(null);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isSavingToDrive, setIsSavingToDrive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const pendingClientItemsCount = useMemo(() => {
@@ -72,17 +84,19 @@ const AdminDashboard: React.FC = () => {
     };
 
     const handleSaveToDrive = async () => {
+        setIsSavingToDrive(true);
         try {
             await saveBackupToDrive();
+            alert('Backup salvo no Google Drive com sucesso!');
             setDirty(false);
-            setIsSaveModalOpen(false);
-            logout();
         } catch (error) {
-            alert("Erro ao salvar no Google Drive. Verifique se o login está ativo e tente novamente.");
-            console.error(error);
+            console.error("Erro ao salvar no Google Drive:", error);
+            alert(`Falha ao salvar no Google Drive. Verifique o console para mais detalhes.\n\n${(error as Error).message}`);
+        } finally {
+            setIsSavingToDrive(false);
         }
     };
-
+    
     const handleExitWithoutSaving = () => {
         setDirty(false);
         setIsSaveModalOpen(false);
@@ -162,6 +176,14 @@ const AdminDashboard: React.FC = () => {
                      <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
                         <h2 className="text-3xl font-bold text-ds-vinho">Painel Administrativo</h2>
                         <div className="flex items-center gap-2 mt-4 sm:mt-0 flex-wrap justify-center">
+                            <button
+                                onClick={handleSaveToDrive}
+                                disabled={isSavingToDrive}
+                                className="flex items-center bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-sm disabled:opacity-50"
+                            >
+                                {isSavingToDrive ? <ButtonSpinner /> : <GoogleDriveIcon />}
+                                {isSavingToDrive ? 'Salvando...' : 'Backup Google Drive'}
+                            </button>
                             <button onClick={handleDownloadBackup} className="flex items-center bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600 transition-colors text-sm">
                                 <DownloadIcon /> Backup Local
                             </button>
