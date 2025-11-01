@@ -22,6 +22,11 @@ declare global {
 
 type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 'carnet';
 
+interface SyncStatus {
+    message: string;
+    type: 'success' | 'info' | 'error';
+}
+
 const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>;
 const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 9.414V13H5.5z" /><path d="M9 13h2v5H9v-5z" /></svg>;
 const ResetIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" /></svg>;
@@ -38,7 +43,7 @@ const ButtonSpinner = () => (
 );
 
 const AdminDashboard: React.FC = () => {
-    const { clients, reminders, isLoadingData, reloadData, isDirty, setDirty } = useData();
+    const { clients, reminders, isLoadingData, reloadData, isDirty, setDirty, syncStatus, setSyncStatus } = useData();
     const { logout } = useAuth(); 
     
     const [activeTab, setActiveTab] = useState<AdminTab>('clients');
@@ -46,7 +51,19 @@ const AdminDashboard: React.FC = () => {
     const [generatedClient, setGeneratedClient] = useState<Client | null>(null);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isSavingToDrive, setIsSavingToDrive] = useState(false);
+    const [notification, setNotification] = useState<SyncStatus | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (syncStatus) {
+            setNotification(syncStatus);
+            const timer = setTimeout(() => {
+                setNotification(null);
+            }, 8000); // 8 seconds to display
+            setSyncStatus(null); // Clear from context so it doesn't reappear
+            return () => clearTimeout(timer);
+        }
+    }, [syncStatus, setSyncStatus]);
 
     const pendingClientItemsCount = useMemo(() => {
         const dependentCount = clients.reduce((count, client) => count + client.dependents.filter(d => d.status === 'pending').length, 0);
@@ -167,10 +184,22 @@ const AdminDashboard: React.FC = () => {
             {count > 0 && <span className="ml-2 bg-ds-dourado text-ds-vinho text-xs font-bold px-2 py-0.5 rounded-full">{count}</span>}
         </button>
     );
+    
+    const notificationStyles = {
+        success: 'bg-green-500',
+        info: 'bg-blue-500',
+        error: 'bg-red-500',
+    };
 
     return (
         <div className="min-h-screen bg-gray-100">
             <Header pendingCount={pendingClientItemsCount + pendingRemindersCount} onNotificationClick={handleNotificationClick} onLogoutRequest={handleLogoutRequest} />
+             {notification && (
+                <div className={`fixed top-16 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 py-3 text-white rounded-b-lg shadow-lg z-50 text-center ${notificationStyles[notification.type]}`}>
+                    {notification.message}
+                    <button onClick={() => setNotification(null)} className="absolute top-1/2 -translate-y-1/2 right-4 font-bold text-xl">&times;</button>
+                </div>
+            )}
             <main className="p-4 sm:p-8">
                 <div className="max-w-7xl mx-auto">
                      <div className="flex flex-col sm:flex-row justify-between items-center mb-6">

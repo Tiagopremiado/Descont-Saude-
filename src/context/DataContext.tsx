@@ -2,6 +2,11 @@ import React, { createContext, useState, useContext, ReactNode, useEffect, useCa
 import { loadInitialData, MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, MOCK_REMINDERS } from '../services/mockData';
 import type { Client, Doctor, Payment, Reminder } from '../types';
 
+interface SyncStatus {
+    message: string;
+    type: 'success' | 'info' | 'error';
+}
+
 interface DataContextType {
   clients: Client[];
   doctors: Doctor[];
@@ -11,6 +16,8 @@ interface DataContextType {
   isDirty: boolean;
   setDirty: (isDirty: boolean) => void;
   reloadData: () => void;
+  syncStatus: SyncStatus | null;
+  setSyncStatus: (status: SyncStatus | null) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -22,6 +29,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isDirty, setDirty] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
 
   const reloadData = useCallback(() => {
     // Reads from the global MOCK arrays into the context state
@@ -34,7 +42,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const initialize = async () => {
       setIsLoadingData(true);
-      await loadInitialData(); // This function now handles local storage and Google Drive loading
+      const status = await loadInitialData(); // This function now handles local storage and Google Drive loading
+      if (status) {
+        setSyncStatus(status);
+      }
       reloadData();
       setIsLoadingData(false);
     };
@@ -63,7 +74,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [isDirty]);
 
   return (
-    <DataContext.Provider value={{ clients, doctors, payments, reminders, isLoadingData, isDirty, setDirty, reloadData }}>
+    <DataContext.Provider value={{ clients, doctors, payments, reminders, isLoadingData, isDirty, setDirty, reloadData, syncStatus, setSyncStatus }}>
       {children}
     </DataContext.Provider>
   );
