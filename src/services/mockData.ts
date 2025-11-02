@@ -21,6 +21,10 @@ declare global {
 
 let isGoogleClientInitialized = false;
 
+// Export a function to check the status from outside
+export const isGoogleApiInitialized = () => isGoogleClientInitialized;
+
+
 // Centralized function to ensure Google API clients are ready
 const initializeGoogleClient = async () => {
     if (isGoogleClientInitialized) {
@@ -183,6 +187,37 @@ export const saveBackupToDrive = async () => {
         });
     });
 };
+
+// New function for manual, user-initiated sync from Drive
+export async function syncFromDrive(): Promise<SyncStatus> {
+    try {
+        await initializeGoogleClient(); // Will throw if it fails/times out
+        await getDriveToken('consent'); // Force consent pop-up if needed
+
+        const driveFiles = await window.gapi.client.drive.files.list({
+            'pageSize': 1,
+            'fields': "files(id, name, modifiedTime)",
+            'q': "name contains 'descontsaude_backup_' and trashed = false",
+            'orderBy': 'modifiedTime desc'
+        });
+
+        const latestFile = driveFiles.result.files?.[0];
+        if (latestFile && latestFile.id) {
+             const fileRes = await window.gapi.client.drive.files.get({ fileId: latestFile.id, alt: 'media' });
+             const backupData = JSON.parse(fileRes.body);
+             setBackupData(backupData); // This applies the data and saves to localStorage
+             localStorage.setItem(DRIVE_METADATA_KEY, JSON.stringify({ modifiedTime: latestFile.modifiedTime }));
+             console.log("Data manually synced from Google Drive.");
+             const date = new Date(latestFile.modifiedTime!).toLocaleString('pt-BR');
+             return { message: `Backup do Google Drive de ${date} foi restaurado com sucesso.`, type: 'success' };
+        } else {
+            return { message: 'Nenhum backup encontrado no Google Drive.', type: 'info' };
+        }
+    } catch (error) {
+        console.error("Manual sync from Google Drive failed:", error);
+        return { message: `Falha na sincronização com Google Drive: ${(error as Error).message}`, type: 'error' };
+    }
+}
 
 
 const parseDependents = (clientData: any): any[] => {

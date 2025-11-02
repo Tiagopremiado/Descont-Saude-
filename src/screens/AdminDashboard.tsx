@@ -8,10 +8,10 @@ import InvoiceGeneration from '../components/admin/InvoiceGeneration';
 import CarnetGeneration from '../components/admin/CarnetGeneration';
 import GenerationResultModal from '../components/admin/GenerationResultModal';
 import SaveChangesModal from '../components/admin/SaveChangesModal';
-import { MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, setBackupData, resetData, saveBackupToDrive } from '../services/mockData';
+import { setBackupData, resetData, saveBackupToDrive, syncFromDrive, isGoogleApiInitialized } from '../services/mockData';
 import { useData } from '../context/DataContext'; 
 import { useAuth } from '../context/AuthContext'; 
-import type { Client, Reminder } from '../types';
+import type { Client } from '../types';
 
 declare global {
     interface Window {
@@ -35,6 +35,7 @@ const GoogleDriveIcon = () => (
         <path d="M19.33,7.17H12.8L10.37,2.3A1.5,1.5,0,0,0,8.94,1.5H3.06A1.5,1.5,0,0,0,1.63,2.3L4.2,7.17H0.67a0.67,0.67,0,0,0-.57,1l6.5,11.5a0.67,0.67,0,0,0,1.14,0l3.8-6.75,3.8,6.75a0.67,0.67,0,0,0,1.14,0l6.5-11.5a0.67,0.67,0,0,0-.57-1Z"/>
     </svg>
 );
+const SyncIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" /></svg>;
 const ButtonSpinner = () => (
     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -43,7 +44,8 @@ const ButtonSpinner = () => (
 );
 
 const AdminDashboard: React.FC = () => {
-    const { clients, reminders, isLoadingData, reloadData, isDirty, setDirty, syncStatus, setSyncStatus } = useData();
+    // FIX: Destructure doctors and payments from useData to make them available in this component.
+    const { clients, doctors, payments, reminders, isLoadingData, reloadData, isDirty, setDirty, syncStatus, setSyncStatus } = useData();
     const { logout } = useAuth(); 
     
     const [activeTab, setActiveTab] = useState<AdminTab>('clients');
@@ -51,6 +53,8 @@ const AdminDashboard: React.FC = () => {
     const [generatedClient, setGeneratedClient] = useState<Client | null>(null);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isSavingToDrive, setIsSavingToDrive] = useState(false);
+    const [isSyncingFromDrive, setIsSyncingFromDrive] = useState(false);
+    const [isGoogleReady, setIsGoogleReady] = useState(isGoogleApiInitialized());
     const [notification, setNotification] = useState<SyncStatus | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,6 +65,7 @@ const AdminDashboard: React.FC = () => {
                 setNotification(null);
             }, 8000); // 8 seconds to display
             setSyncStatus(null); // Clear from context so it doesn't reappear
+            setIsGoogleReady(isGoogleApiInitialized());
             return () => clearTimeout(timer);
         }
     }, [syncStatus, setSyncStatus]);
@@ -91,7 +96,13 @@ const AdminDashboard: React.FC = () => {
     };
 
     const handleDownloadBackup = () => {
-        const backupData = { clients: MOCK_CLIENTS, doctors: MOCK_DOCTORS, payments: MOCK_PAYMENTS };
+        // FIX: Use the destructured `doctors` and `payments` variables from the useData hook
+        // instead of the non-existent `useData.getState()` method.
+        const backupData = {
+            clients,
+            doctors,
+            payments,
+        };
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent( JSON.stringify(backupData, null, 2) )}`;
         const link = document.createElement("a");
         const date = new Date().toISOString().slice(0, 10);
@@ -104,14 +115,27 @@ const AdminDashboard: React.FC = () => {
         setIsSavingToDrive(true);
         try {
             await saveBackupToDrive();
-            alert('Backup salvo no Google Drive com sucesso!');
+            setNotification({ message: 'Backup salvo no Google Drive com sucesso!', type: 'success' });
             setDirty(false);
         } catch (error) {
             console.error("Erro ao salvar no Google Drive:", error);
-            alert(`Falha ao salvar no Google Drive. Verifique o console para mais detalhes.\n\n${(error as Error).message}`);
+            setNotification({ message: `Falha ao salvar no Google Drive: ${(error as Error).message}`, type: 'error' });
         } finally {
             setIsSavingToDrive(false);
         }
+    };
+
+    const handleSyncFromDrive = async () => {
+        setIsSyncingFromDrive(true);
+        setNotification(null); // Clear previous notifications
+        const status = await syncFromDrive();
+        setNotification(status); // Show result to user
+        if (status.type === 'success') {
+            reloadData(); // Refresh data in the UI from context
+            setDirty(false); // Syncing brings data up to date, so it's not "dirty" anymore
+        }
+        setIsSyncingFromDrive(false);
+        setIsGoogleReady(isGoogleApiInitialized());
     };
     
     const handleExitWithoutSaving = () => {
@@ -205,13 +229,22 @@ const AdminDashboard: React.FC = () => {
                      <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
                         <h2 className="text-3xl font-bold text-ds-vinho">Painel Administrativo</h2>
                         <div className="flex items-center gap-2 mt-4 sm:mt-0 flex-wrap justify-center">
+                             <button
+                                onClick={handleSyncFromDrive}
+                                disabled={isSyncingFromDrive}
+                                className="flex items-center bg-blue-600 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                            >
+                                {isSyncingFromDrive ? <ButtonSpinner /> : <SyncIcon />}
+                                {isSyncingFromDrive ? 'Sincronizando...' : 'Sincronizar do Drive'}
+                            </button>
                             <button
                                 onClick={handleSaveToDrive}
-                                disabled={isSavingToDrive}
+                                disabled={isSavingToDrive || !isGoogleReady}
+                                title={!isGoogleReady ? "API do Google indisponível. Tente sincronizar primeiro." : "Salvar backup no Google Drive"}
                                 className="flex items-center bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-sm disabled:opacity-50"
                             >
                                 {isSavingToDrive ? <ButtonSpinner /> : <GoogleDriveIcon />}
-                                {isSavingToDrive ? 'Salvando...' : 'Backup Google Drive'}
+                                {isSavingToDrive ? 'Salvando...' : 'Salvar no Drive'}
                             </button>
                             <button onClick={handleDownloadBackup} className="flex items-center bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600 transition-colors text-sm">
                                 <DownloadIcon /> Backup Local
