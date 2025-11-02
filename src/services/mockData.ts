@@ -27,15 +27,25 @@ const initializeGoogleClient = async () => {
         return;
     }
     try {
-        // Wait for the scripts from index.html to load via the global promises
-        await (window as any).gapiLoaded;
-        await (window as any).gsiLoaded;
+        // Add a timeout to prevent getting stuck
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Tempo de carregamento da API do Google esgotado.')), 8000) // 8 second timeout
+        );
 
-        await new Promise<void>(resolve => window.gapi.load('client', resolve));
-        await window.gapi.client.init({
-            apiKey: GOOGLE_API_KEY,
-            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-        });
+        await Promise.race([
+            (async () => {
+                // Wait for the scripts from index.html to load via the global promises
+                await (window as any).gapiLoaded;
+                await (window as any).gsiLoaded;
+
+                await new Promise<void>(resolve => window.gapi.load('client', resolve));
+                await window.gapi.client.init({
+                    apiKey: GOOGLE_API_KEY,
+                    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                });
+            })(),
+            timeoutPromise
+        ]);
         
         isGoogleClientInitialized = true;
         console.log("Google API Client initialized successfully.");
