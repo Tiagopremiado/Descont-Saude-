@@ -112,6 +112,7 @@ export const saveBackupToDrive = async () => {
         clients: MOCK_CLIENTS,
         doctors: MOCK_DOCTORS,
         payments: MOCK_PAYMENTS,
+        reminders: MOCK_REMINDERS,
     };
     const backupContent = JSON.stringify(backupData, null, 2);
 
@@ -314,10 +315,11 @@ export const saveReminders = () => {
     localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(MOCK_REMINDERS));
 };
 
-function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[] }) {
+function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[] }) {
     MOCK_CLIENTS = data.clients || [];
     MOCK_DOCTORS = data.doctors || [];
     MOCK_PAYMENTS = data.payments || [];
+    MOCK_REMINDERS = data.reminders || []; // Handle backups with or without reminders
 
     MOCK_USERS = [
       { id: 'user1', name: 'Admin User', cpf: '111.111.111-11', phone: '(53) 991560861', role: 'admin' },
@@ -349,17 +351,10 @@ export async function loadInitialData(): Promise<SyncStatus | null> {
         }
     } catch (e) {
         console.warn("Using initial hardcoded data:", e);
-        applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [] });
+        applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [] });
     }
 
-    // 2. Load reminders from local storage
-    try {
-        const storedReminders = localStorage.getItem(REMINDERS_STORAGE_KEY);
-        MOCK_REMINDERS = storedReminders ? JSON.parse(storedReminders) : [];
-    } catch(e) {
-        console.warn("Failed to load reminders from localStorage.", e);
-        MOCK_REMINDERS = [];
-    }
+    // REMOVED separate reminder loading, as it's now part of the main backup object handled by applyBackupData.
     
     // 3. In the background, try to sync with Google Drive
     try {
@@ -395,14 +390,21 @@ export async function loadInitialData(): Promise<SyncStatus | null> {
 }
 
 
-export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[] }) => {
+export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[] }) => {
   if (!data || !Array.isArray(data.clients) || !Array.isArray(data.doctors) || !Array.isArray(data.payments)) {
     throw new Error("Invalid backup file structure.");
   }
   
-  localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(data, null, 2));
+  // Ensure the reminders key exists, even for old backups.
+  const completeData = {
+      ...data,
+      reminders: data.reminders || [],
+  };
+
+  localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(completeData, null, 2));
+  // The main backup is now the single source of truth, so we can clear the old dedicated reminder storage.
   localStorage.removeItem(REMINDERS_STORAGE_KEY);
-  applyBackupData(data);
+  applyBackupData(completeData);
   console.log("Backup data restored and saved to localStorage.");
 };
 
@@ -410,6 +412,6 @@ export const resetData = () => {
     localStorage.removeItem(BACKUP_STORAGE_KEY);
     localStorage.removeItem(REMINDERS_STORAGE_KEY);
     localStorage.removeItem(DRIVE_METADATA_KEY);
-    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [] });
+    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [] });
     console.log("Data has been reset to initial state.");
 };

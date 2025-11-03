@@ -44,7 +44,6 @@ const ButtonSpinner = () => (
 );
 
 const AdminDashboard: React.FC = () => {
-    // FIX: Destructure doctors and payments from useData to make them available in this component.
     const { clients, doctors, payments, reminders, isLoadingData, reloadData, isDirty, setDirty, syncStatus, setSyncStatus } = useData();
     const { logout } = useAuth(); 
     
@@ -96,12 +95,11 @@ const AdminDashboard: React.FC = () => {
     };
 
     const handleDownloadBackup = () => {
-        // FIX: Use the destructured `doctors` and `payments` variables from the useData hook
-        // instead of the non-existent `useData.getState()` method.
         const backupData = {
             clients,
             doctors,
             payments,
+            reminders,
         };
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent( JSON.stringify(backupData, null, 2) )}`;
         const link = document.createElement("a");
