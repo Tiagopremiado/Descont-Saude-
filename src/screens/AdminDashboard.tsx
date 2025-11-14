@@ -234,7 +234,8 @@ const AdminDashboard: React.FC = () => {
                         <div className="flex items-center gap-2 mt-4 sm:mt-0 flex-wrap justify-center">
                              <button
                                 onClick={handleSyncFromDrive}
-                                disabled={isSyncingFromDrive}
+                                disabled={isSyncingFromDrive || !isGoogleReady}
+                                title={!isGoogleReady ? "API do Google indisponível. Configure as chaves de API para usar." : "Sincronizar dados do Google Drive"}
                                 className="flex items-center bg-blue-600 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
                             >
                                 {isSyncingFromDrive ? <ButtonSpinner /> : <SyncIcon />}

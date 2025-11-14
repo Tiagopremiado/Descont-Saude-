@@ -27,6 +27,12 @@ export const isGoogleApiInitialized = () => isGoogleClientInitialized;
 
 // Centralized function to ensure Google API clients are ready
 const initializeGoogleClient = async () => {
+    if (!GOOGLE_API_KEY || !GOOGLE_CLIENT_ID) {
+        console.warn("Credenciais do Google não fornecidas. As funcionalidades do Google Drive estarão desabilitadas.");
+        isGoogleClientInitialized = false;
+        return;
+    }
+    
     if (isGoogleClientInitialized) {
         return;
     }
