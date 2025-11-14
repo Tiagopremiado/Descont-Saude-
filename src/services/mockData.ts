@@ -1,5 +1,5 @@
 // services/mockData.ts
-import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminder } from '../types';
+import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, UpdateApprovalRequest } from '../types';
 import { GOOGLE_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_DRIVE_SCOPE } from '../config';
 
 const BACKUP_STORAGE_KEY = 'descontsaude_backup_data';
@@ -113,6 +113,7 @@ export const saveBackupToDrive = async () => {
         doctors: MOCK_DOCTORS,
         payments: MOCK_PAYMENTS,
         reminders: MOCK_REMINDERS,
+        updateRequests: MOCK_UPDATE_REQUESTS,
     };
     const backupContent = JSON.stringify(backupData, null, 2);
 
@@ -308,6 +309,7 @@ export let MOCK_USERS: User[] = [];
 export let MOCK_PAYMENTS: Payment[] = [];
 export let MOCK_DOCTORS: Doctor[] = [];
 export let MOCK_REMINDERS: Reminder[] = [];
+export let MOCK_UPDATE_REQUESTS: UpdateApprovalRequest[] = [];
 export let MOCK_RATINGS: Rating[] = [];
 export let MOCK_SERVICE_HISTORY: ServiceHistoryItem[] = [];
 
@@ -315,14 +317,16 @@ export const saveReminders = () => {
     localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(MOCK_REMINDERS));
 };
 
-function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[] }) {
+function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[] }) {
     MOCK_CLIENTS = data.clients || [];
     MOCK_DOCTORS = data.doctors || [];
     MOCK_PAYMENTS = data.payments || [];
     MOCK_REMINDERS = data.reminders || []; // Handle backups with or without reminders
+    MOCK_UPDATE_REQUESTS = data.updateRequests || [];
 
     MOCK_USERS = [
       { id: 'user1', name: 'Admin User', cpf: '111.111.111-11', phone: '(53) 991560861', role: 'admin' },
+      { id: 'user-entregador', name: 'Entregador Teste', cpf: '222.222.222-22', phone: '(53) 92222-2222', role: 'entregador' },
       ...MOCK_CLIENTS.map((client) => ({
           id: `user-${client.id}`,
           name: client.name,
@@ -351,7 +355,7 @@ export async function loadInitialData(): Promise<SyncStatus | null> {
         }
     } catch (e) {
         console.warn("Using initial hardcoded data:", e);
-        applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [] });
+        applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [] });
     }
 
     // REMOVED separate reminder loading, as it's now part of the main backup object handled by applyBackupData.
@@ -390,7 +394,7 @@ export async function loadInitialData(): Promise<SyncStatus | null> {
 }
 
 
-export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[] }) => {
+export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[] }) => {
   if (!data || !Array.isArray(data.clients) || !Array.isArray(data.doctors) || !Array.isArray(data.payments)) {
     throw new Error("Invalid backup file structure.");
   }
@@ -399,6 +403,7 @@ export const setBackupData = (data: { clients: Client[], doctors: Doctor[], paym
   const completeData = {
       ...data,
       reminders: data.reminders || [],
+      updateRequests: data.updateRequests || [],
   };
 
   localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(completeData, null, 2));
@@ -412,6 +417,6 @@ export const resetData = () => {
     localStorage.removeItem(BACKUP_STORAGE_KEY);
     localStorage.removeItem(REMINDERS_STORAGE_KEY);
     localStorage.removeItem(DRIVE_METADATA_KEY);
-    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [] });
+    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [] });
     console.log("Data has been reset to initial state.");
 };

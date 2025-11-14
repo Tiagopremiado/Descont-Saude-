@@ -1,0 +1,135 @@
+import React, { useState, useMemo } from 'react';
+import type { UpdateApprovalRequest } from '../../types';
+import { useData } from '../../context/DataContext';
+import { approveUpdateRequest, rejectUpdateRequest } from '../../services/apiService';
+import Card from '../common/Card';
+import Spinner from '../common/Spinner';
+
+const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) => {
+    const { updateRequests, isLoadingData } = useData();
+    const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
+    
+    const filteredRequests = useMemo(() => {
+        const sorted = [...updateRequests].sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+        if (filter === 'all') return sorted;
+        return sorted.filter(r => r.status === filter);
+    }, [updateRequests, filter]);
+    
+    const handleAction = async (requestId: string, action: 'approve' | 'reject') => {
+        setActionLoading(requestId);
+        try {
+            if (action === 'approve') {
+                await approveUpdateRequest(requestId);
+            } else {
+                await rejectUpdateRequest(requestId);
+            }
+            onUpdate(); // Reloads all data via context
+        } catch (error) {
+            console.error(`Failed to ${action} request`, error);
+            alert(`Erro ao ${action === 'approve' ? 'aprovar' : 'rejeitar'} a solicitação.`);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+    
+    const statusMap: Record<UpdateApprovalRequest['status'], { label: string; bg: string; text: string; }> = {
+        pending: { label: 'Pendente', bg: 'bg-yellow-100', text: 'text-yellow-800' },
+        approved: { label: 'Aprovado', bg: 'bg-green-100', text: 'text-green-800' },
+        rejected: { label: 'Rejeitado', bg: 'bg-red-100', text: 'text-red-800' },
+    };
+
+    const hasNoChanges = (req: UpdateApprovalRequest) => Object.keys(req.updates).length === 0;
+
+    return (
+        <Card title="Aprovações de Atualização Cadastral">
+            <div className="flex items-center gap-2 mb-6">
+                {(['pending', 'approved', 'rejected', 'all'] as const).map(status => (
+                    <button 
+                        key={status} 
+                        onClick={() => setFilter(status)}
+                        className={`px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-colors ${filter === status ? 'bg-ds-vinho text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                        <span className={`px-2 rounded-full text-xs ${filter === status ? 'bg-white/20' : 'bg-gray-400/50'}`}>{status === 'all' ? updateRequests.length : updateRequests.filter(r => r.status === status).length}</span>
+                    </button>
+                ))}
+            </div>
+
+            {isLoadingData ? <Spinner/> : (
+                <div className="space-y-4">
+                    {filteredRequests.length === 0 && <p className="text-center text-gray-500 py-8">Nenhuma solicitação encontrada para este filtro.</p>}
+                    {filteredRequests.map(req => (
+                        <div key={req.id} className="bg-white border rounded-lg shadow-sm">
+                            <header className="flex justify-between items-center p-4 bg-gray-50 rounded-t-lg border-b">
+                                <div>
+                                    <h3 className="font-bold text-lg text-ds-vinho">{req.clientName}</h3>
+                                    <p className="text-xs text-gray-500">Solicitado em: {new Date(req.requestedAt).toLocaleString('pt-BR')}</p>
+                                </div>
+                                <span className={`px-3 py-1 text-sm font-bold rounded-full ${statusMap[req.status].bg} ${statusMap[req.status].text}`}>
+                                    {statusMap[req.status].label}
+                                </span>
+                            </header>
+
+                            <div className="p-4">
+                                {hasNoChanges(req) ? (
+                                    <div className="text-center p-4 bg-blue-50 text-blue-800 rounded-md">
+                                        <p className="font-semibold">Nenhuma alteração foi enviada.</p>
+                                        <p className="text-sm">O entregador confirmou que os dados atuais do cliente estão corretos.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                        <div>
+                                            <h4 className="font-semibold text-gray-700 mb-2 pb-1 border-b">Dados Antigos</h4>
+                                            <dl className="text-sm space-y-2">
+                                                {Object.keys(req.updates).map(key => (
+                                                    <div key={key}>
+                                                        <dt className="font-medium text-gray-500 capitalize">{key}</dt>
+                                                        <dd className="text-gray-800">{req.currentData[key as keyof typeof req.currentData] || '-'}</dd>
+                                                    </div>
+                                                ))}
+                                            </dl>
+                                        </div>
+                                         <div>
+                                            <h4 className="font-semibold text-green-700 mb-2 pb-1 border-b border-green-200">Dados Novos</h4>
+                                            <dl className="text-sm space-y-2">
+                                                 {Object.keys(req.updates).map(key => (
+                                                    <div key={key}>
+                                                        <dt className="font-medium text-gray-500 capitalize">{key}</dt>
+                                                        <dd className="font-bold text-green-800">{req.updates[key as keyof typeof req.updates] || '-'}</dd>
+                                                    </div>
+                                                ))}
+                                            </dl>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {req.status === 'pending' && (
+                                <footer className="flex justify-end items-center gap-3 p-3 bg-gray-50 rounded-b-lg border-t">
+                                    {actionLoading === req.id && <Spinner />}
+                                    <button
+                                        onClick={() => handleAction(req.id, 'reject')}
+                                        disabled={!!actionLoading}
+                                        className="bg-red-600 text-white font-bold py-2 px-4 rounded-full hover:bg-red-700 transition-colors disabled:opacity-50"
+                                    >
+                                        Rejeitar
+                                    </button>
+                                     <button
+                                        onClick={() => handleAction(req.id, 'approve')}
+                                        disabled={!!actionLoading}
+                                        className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 transition-colors disabled:opacity-50"
+                                    >
+                                        Aprovar
+                                    </button>
+                                </footer>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </Card>
+    );
+};
+
+export default ApprovalManagement;

@@ -1,5 +1,5 @@
-import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders } from './mockData';
-import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder } from '../types';
+import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders, MOCK_UPDATE_REQUESTS } from './mockData';
+import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest } from '../types';
 
 // Simulate API delay
 const apiDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -354,4 +354,63 @@ export const getRatingsByClientId = async (clientId: string): Promise<Rating[]> 
 export const getServiceHistoryByClientId = async (clientId: string): Promise<ServiceHistoryItem[]> => {
   await apiDelay(500);
   return JSON.parse(JSON.stringify(MOCK_SERVICE_HISTORY.filter(sh => sh.clientId === clientId)));
+};
+
+
+// --- Update Request Services ---
+
+export const getUpdateRequests = async (): Promise<UpdateApprovalRequest[]> => {
+    await apiDelay(300);
+    return JSON.parse(JSON.stringify(MOCK_UPDATE_REQUESTS));
+};
+
+export const submitUpdateRequest = async (
+    clientId: string, 
+    currentData: UpdateApprovalRequest['currentData'],
+    updates: UpdateApprovalRequest['updates']
+): Promise<UpdateApprovalRequest> => {
+    await apiDelay(700);
+    const client = MOCK_CLIENTS.find(c => c.id === clientId);
+    if (!client) throw new Error("Client not found");
+
+    const newRequest: UpdateApprovalRequest = {
+        id: `update-${Date.now()}`,
+        clientId,
+        clientName: client.name,
+        requestedAt: new Date().toISOString(),
+        status: 'pending',
+        currentData,
+        updates,
+    };
+    MOCK_UPDATE_REQUESTS.unshift(newRequest);
+    return JSON.parse(JSON.stringify(newRequest));
+};
+
+export const approveUpdateRequest = async (requestId: string): Promise<Client | null> => {
+    await apiDelay(800);
+    const requestIndex = MOCK_UPDATE_REQUESTS.findIndex(r => r.id === requestId);
+    if (requestIndex === -1) throw new Error("Request not found");
+
+    const request = MOCK_UPDATE_REQUESTS[requestIndex];
+    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === request.clientId);
+    if (clientIndex === -1) {
+        MOCK_UPDATE_REQUESTS[requestIndex].status = 'rejected';
+        return null;
+    }
+
+    const updatedClientData = { ...MOCK_CLIENTS[clientIndex], ...request.updates };
+    MOCK_CLIENTS[clientIndex] = updatedClientData;
+    
+    MOCK_UPDATE_REQUESTS[requestIndex].status = 'approved';
+
+    return JSON.parse(JSON.stringify(updatedClientData));
+};
+
+export const rejectUpdateRequest = async (requestId: string): Promise<UpdateApprovalRequest | null> => {
+    await apiDelay(400);
+    const requestIndex = MOCK_UPDATE_REQUESTS.findIndex(r => r.id === requestId);
+    if (requestIndex === -1) return null;
+
+    MOCK_UPDATE_REQUESTS[requestIndex].status = 'rejected';
+    return JSON.parse(JSON.stringify(MOCK_UPDATE_REQUESTS[requestIndex]));
 };

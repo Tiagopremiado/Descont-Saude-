@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { loadInitialData, MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, MOCK_REMINDERS } from '../services/mockData';
-import type { Client, Doctor, Payment, Reminder } from '../types';
+import { loadInitialData, MOCK_CLIENTS, MOCK_DOCTORS, MOCK_PAYMENTS, MOCK_REMINDERS, MOCK_UPDATE_REQUESTS } from '../services/mockData';
+import type { Client, Doctor, Payment, Reminder, UpdateApprovalRequest } from '../types';
 
 interface SyncStatus {
     message: string;
@@ -12,6 +12,7 @@ interface DataContextType {
   doctors: Doctor[];
   payments: Payment[];
   reminders: Reminder[];
+  updateRequests: UpdateApprovalRequest[];
   isLoadingData: boolean;
   isDirty: boolean;
   setDirty: (isDirty: boolean) => void;
@@ -27,6 +28,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [updateRequests, setUpdateRequests] = useState<UpdateApprovalRequest[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isDirty, setDirty] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -37,6 +39,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setDoctors([...MOCK_DOCTORS]);
     setPayments([...MOCK_PAYMENTS]);
     setReminders([...MOCK_REMINDERS]);
+    setUpdateRequests([...MOCK_UPDATE_REQUESTS]);
   }, []);
 
   useEffect(() => {
@@ -60,6 +63,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           clients: MOCK_CLIENTS,
           doctors: MOCK_DOCTORS,
           payments: MOCK_PAYMENTS,
+          reminders: MOCK_REMINDERS,
+          updateRequests: MOCK_UPDATE_REQUESTS,
         };
         // This key matches the one in mockData.ts
         localStorage.setItem('descontsaude_backup_data', JSON.stringify(backupData));
@@ -74,7 +79,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [isDirty]);
 
   return (
-    <DataContext.Provider value={{ clients, doctors, payments, reminders, isLoadingData, isDirty, setDirty, reloadData, syncStatus, setSyncStatus }}>
+    <DataContext.Provider value={{ clients, doctors, payments, reminders, updateRequests, isLoadingData, isDirty, setDirty, reloadData, syncStatus, setSyncStatus }}>
       {children}
     </DataContext.Provider>
   );

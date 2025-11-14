@@ -5,6 +5,7 @@ import { DataProvider, useData } from './context/DataContext'; // Import the new
 import LoginPage from './screens/LoginPage';
 import AdminDashboard from './screens/AdminDashboard';
 import ClientDashboard from './screens/ClientDashboard';
+import EntregadorDashboard from './screens/EntregadorDashboard';
 import AboutPage from './screens/AboutPage';
 import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 import Spinner from './components/common/Spinner';
@@ -22,13 +23,23 @@ const AppRoutes: React.FC = () => {
         );
     }
 
+    const getRedirectPath = () => {
+        if (!user) return '/login';
+        switch (user.role) {
+            case 'admin': return '/admin';
+            case 'client': return '/client';
+            case 'entregador': return '/entregador';
+            default: return '/login';
+        }
+    }
+
     return (
         <Routes>
             <Route path="/about" element={<AboutPage />} />
 
             <Route 
                 path="/login" 
-                element={!user ? <LoginPage /> : <Navigate to={user.role === 'admin' ? '/admin' : '/client'} replace />} 
+                element={!user ? <LoginPage /> : <Navigate to={getRedirectPath()} replace />} 
             />
             
             <Route 
@@ -39,6 +50,11 @@ const AppRoutes: React.FC = () => {
             <Route 
                 path="/client" 
                 element={user?.role === 'client' ? <ClientDashboard /> : <Navigate to="/login" replace />} 
+            />
+
+            <Route 
+                path="/entregador" 
+                element={user?.role === 'entregador' ? <EntregadorDashboard /> : <Navigate to="/login" replace />} 
             />
             
             {/* Redirect root to login */}

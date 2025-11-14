@@ -28,6 +28,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return null;
     }
 
+    // Entregador Login Path
+    if (identifier.toLowerCase() === 'entregador') {
+        if (pass === 'entrega123') {
+            const entregadorUser = MOCK_USERS.find(u => u.role === 'entregador');
+            if(entregadorUser) {
+                setUser(entregadorUser);
+                return entregadorUser;
+            }
+        }
+        return null;
+    }
+
     // Client Login Path
     const normalizedIdentifier = identifier.replace(/\D/g, '');
     const foundUser = MOCK_USERS.find(

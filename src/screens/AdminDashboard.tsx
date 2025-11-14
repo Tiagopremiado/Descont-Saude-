@@ -8,6 +8,7 @@ import InvoiceGeneration from '../components/admin/InvoiceGeneration';
 import CarnetGeneration from '../components/admin/CarnetGeneration';
 import GenerationResultModal from '../components/admin/GenerationResultModal';
 import SaveChangesModal from '../components/admin/SaveChangesModal';
+import ApprovalManagement from '../components/admin/ApprovalManagement';
 import { setBackupData, resetData, saveBackupToDrive, syncFromDrive, isGoogleApiInitialized } from '../services/mockData';
 import { useData } from '../context/DataContext'; 
 import { useAuth } from '../context/AuthContext'; 
@@ -20,7 +21,7 @@ declare global {
     }
 }
 
-type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 'carnet';
+type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 'carnet' | 'approvals';
 
 interface SyncStatus {
     message: string;
@@ -44,7 +45,7 @@ const ButtonSpinner = () => (
 );
 
 const AdminDashboard: React.FC = () => {
-    const { clients, doctors, payments, reminders, isLoadingData, reloadData, isDirty, setDirty, syncStatus, setSyncStatus } = useData();
+    const { clients, doctors, payments, reminders, isLoadingData, reloadData, isDirty, setDirty, syncStatus, setSyncStatus, updateRequests } = useData();
     const { logout } = useAuth(); 
     
     const [activeTab, setActiveTab] = useState<AdminTab>('clients');
@@ -76,6 +77,8 @@ const AdminDashboard: React.FC = () => {
     }, [clients]);
     
     const pendingRemindersCount = useMemo(() => reminders.filter(r => r.status === 'pending').length, [reminders]);
+    const pendingApprovalCount = useMemo(() => updateRequests.filter(r => r.status === 'pending').length, [updateRequests]);
+
 
     const handleLogoutRequest = () => {
         if (isDirty) {
@@ -189,6 +192,8 @@ const AdminDashboard: React.FC = () => {
                         />;
             case 'reminders':
                 return <ReminderManagement clients={clients} onUpdate={handleDataUpdate} initialReminders={reminders} />;
+            case 'approvals':
+                return <ApprovalManagement onUpdate={handleDataUpdate} />;
             case 'payments': return <PaymentReports onUpdate={handleDataUpdate} />;
             case 'doctors': return <DoctorManagement onUpdate={handleDataUpdate} />;
             case 'invoices': return <InvoiceGeneration />;
@@ -215,7 +220,7 @@ const AdminDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <Header pendingCount={pendingClientItemsCount + pendingRemindersCount} onNotificationClick={handleNotificationClick} onLogoutRequest={handleLogoutRequest} />
+            <Header pendingCount={pendingClientItemsCount + pendingRemindersCount + pendingApprovalCount} onNotificationClick={handleNotificationClick} onLogoutRequest={handleLogoutRequest} />
              {notification && (
                 <div className={`fixed top-16 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 py-3 text-white rounded-b-lg shadow-lg z-50 text-center ${notificationStyles[notification.type]}`}>
                     {notification.message}
@@ -259,6 +264,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="border-b border-gray-300 mb-6">
                         <nav className="-mb-px flex space-x-4 overflow-x-auto pb-px">
                             <TabButton tab="clients" label="Gerenciar Clientes" count={pendingClientItemsCount} />
+                            <TabButton tab="approvals" label="Aprovações" count={pendingApprovalCount} />
                             <TabButton tab="reminders" label="Lembretes" count={pendingRemindersCount} />
                             <TabButton tab="payments" label="Relatório de Pagamentos" />
                             <TabButton tab="invoices" label="Notas Fiscais" />

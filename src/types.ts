@@ -5,7 +5,7 @@ export interface User {
   name: string;
   cpf: string;
   phone: string;
-  role: 'admin' | 'client';
+  role: 'admin' | 'client' | 'entregador';
   clientId?: string; // Only for clients
 }
 
@@ -91,4 +91,28 @@ export interface Reminder {
   clientId?: string;
   clientName?: string;
   createdAt: string; // ISO string
+}
+
+export interface UpdateApprovalRequest {
+    id: string;
+    clientId: string;
+    clientName: string;
+    requestedAt: string; // ISO string
+    status: 'pending' | 'approved' | 'rejected';
+    updates: {
+        phone?: string;
+        whatsapp?: string;
+        address?: string;
+        addressNumber?: string;
+        neighborhood?: string;
+        city?: string;
+    };
+    currentData: {
+        phone: string;
+        whatsapp: string;
+        address: string;
+        addressNumber: string;
+        neighborhood: string;
+        city: string;
+    };
 }
