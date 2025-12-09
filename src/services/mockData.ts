@@ -1,4 +1,3 @@
-
 // services/mockData.ts
 import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, UpdateApprovalRequest, PlanConfig } from '../types';
 import { GOOGLE_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_DRIVE_SCOPE } from '../config';
@@ -441,4 +440,26 @@ export const resetData = () => {
     localStorage.removeItem(DRIVE_METADATA_KEY);
     applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [], planConfig: DEFAULT_PLAN_CONFIG });
     console.log("Data has been reset to initial state.");
+};
+
+// Function to merge update requests from Entregador into Admin's list
+export const mergeUpdateRequests = (incomingRequests: UpdateApprovalRequest[]) => {
+    const existingIds = new Set(MOCK_UPDATE_REQUESTS.map(r => r.id));
+    let addedCount = 0;
+
+    incomingRequests.forEach(req => {
+        if (!existingIds.has(req.id)) {
+            MOCK_UPDATE_REQUESTS.unshift(req);
+            addedCount++;
+        }
+    });
+
+    if (addedCount > 0) {
+        // Save the updated list to localStorage
+        const currentData = JSON.parse(localStorage.getItem(BACKUP_STORAGE_KEY) || '{}');
+        currentData.updateRequests = MOCK_UPDATE_REQUESTS;
+        localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(currentData, null, 2));
+    }
+    
+    return addedCount;
 };

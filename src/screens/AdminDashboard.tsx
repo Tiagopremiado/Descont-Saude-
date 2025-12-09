@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Header from '../components/Header';
 import ClientManagement from '../components/admin/ClientManagement';
@@ -11,7 +10,7 @@ import GenerationResultModal from '../components/admin/GenerationResultModal';
 import SaveChangesModal from '../components/admin/SaveChangesModal';
 import ApprovalManagement from '../components/admin/ApprovalManagement';
 import PlanConfigModal from '../components/admin/PlanConfigModal'; // Import
-import { setBackupData, resetData, saveBackupToDrive, syncFromDrive, isGoogleApiInitialized } from '../services/mockData';
+import { setBackupData, resetData, saveBackupToDrive, syncFromDrive, isGoogleApiInitialized, mergeUpdateRequests } from '../services/mockData';
 import { useData } from '../context/DataContext'; 
 import { useAuth } from '../context/AuthContext'; 
 import type { Client } from '../types';
@@ -40,6 +39,7 @@ const GoogleDriveIcon = () => (
 );
 const SyncIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" /></svg>;
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>;
+const DeliveryIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" /></svg>;
 
 const ButtonSpinner = () => (
     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -62,6 +62,7 @@ const AdminDashboard: React.FC = () => {
     const [notification, setNotification] = useState<SyncStatus | null>(null);
     const [isPlanConfigOpen, setIsPlanConfigOpen] = useState(false); // New state
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const importInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (syncStatus) {
@@ -152,6 +153,7 @@ const AdminDashboard: React.FC = () => {
 
 
     const handleRestoreClick = () => { fileInputRef.current?.click(); };
+    const handleImportClick = () => { importInputRef.current?.click(); };
 
     const handleResetData = () => {
         if (window.confirm("ATENÇÃO: Esta ação apagará TODOS os dados salvos no navegador (clientes, pagamentos, lembretes) e restaurará os dados iniciais do sistema. Esta ação é IRREVERSÍVEL. Deseja continuar?")) {
@@ -179,6 +181,40 @@ const AdminDashboard: React.FC = () => {
             } catch (error) {
                 console.error("Error parsing backup file:", error);
                 alert("Erro ao ler o arquivo de backup. Verifique se o arquivo é um JSON válido e tem a estrutura correta.");
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result;
+                if (typeof text !== 'string') throw new Error("Failed to read file.");
+                const importData = JSON.parse(text);
+                
+                if (Array.isArray(importData)) {
+                    const count = mergeUpdateRequests(importData);
+                    if (count > 0) {
+                        reloadData();
+                        setDirty(true);
+                        setNotification({ message: `${count} atualizações importadas com sucesso! Verifique a aba 'Aprovações'.`, type: 'success' });
+                        setActiveTab('approvals');
+                    } else {
+                        setNotification({ message: 'Nenhuma atualização nova encontrada no arquivo.', type: 'info' });
+                    }
+                } else {
+                    throw new Error("Formato inválido");
+                }
+            } catch (error) {
+                console.error("Error parsing import file:", error);
+                alert("Erro ao ler o arquivo de importação. Certifique-se que é um arquivo JSON válido gerado pelo entregador.");
+            } finally {
+                if (importInputRef.current) importInputRef.current.value = "";
             }
         };
         reader.readAsText(file);
@@ -258,6 +294,10 @@ const AdminDashboard: React.FC = () => {
                             <button onClick={() => setIsPlanConfigOpen(true)} className="flex items-center bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-80 transition-colors text-sm">
                                 <SettingsIcon /> Configurar Planos
                             </button>
+                            <button onClick={handleImportClick} className="flex items-center bg-purple-600 text-white font-bold py-2 px-4 rounded-full hover:bg-purple-700 transition-colors text-sm">
+                                <DeliveryIcon /> Receber do Entregador
+                            </button>
+                            <input type="file" ref={importInputRef} onChange={handleImportFileChange} className="hidden" accept=".json" />
                             <button onClick={handleDownloadBackup} className="flex items-center bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600 transition-colors text-sm">
                                 <DownloadIcon /> Backup Local
                             </button>

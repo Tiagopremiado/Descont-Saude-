@@ -13,6 +13,12 @@ const MapIcon = () => (
     </svg>
 );
 
+const WhatsAppIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241zM12 6.422c.433 0 .78.347.78.78s-.347.78-.78.78a.78.78 0 010-1.56zm-.001 4.29c.433 0 .78.347.78.78s-.347.78-.78.78a.78.78 0 010-1.56zm0 2.894c.433 0 .78.347.78.78s-.347.78-.78.78a.78.78 0 010-1.56z"/>
+    </svg>
+);
+
 const EntregadorDashboard: React.FC = () => {
     const { logout } = useAuth();
     const { clients, isLoadingData, reloadData, setDirty } = useData();
@@ -65,6 +71,46 @@ const EntregadorDashboard: React.FC = () => {
         const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
         window.open(mapUrl, '_blank');
     };
+
+    const handleExportDailyReport = async () => {
+        // Pega as requisições de hoje
+        const today = new Date().toDateString();
+        const dailyUpdates = updateRequests.filter(req => new Date(req.requestedAt).toDateString() === today);
+
+        if (dailyUpdates.length === 0) {
+            alert("Nenhuma atualização registrada hoje para enviar.");
+            return;
+        }
+
+        // Cria o arquivo JSON
+        const dataStr = JSON.stringify(dailyUpdates, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const file = new File([blob], `relatorio_entregas_${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
+
+        // Tenta compartilhar nativamente (WhatsApp/Email)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'Relatório Diário de Entregas',
+                    text: `Segue o arquivo com as ${dailyUpdates.length} atualizações de cadastro de hoje.`,
+                    files: [file]
+                });
+            } catch (error) {
+                console.error("Erro ao compartilhar:", error);
+            }
+        } else {
+            // Fallback: Baixa o arquivo para envio manual
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert("Arquivo baixado! Por favor, envie o arquivo manualmente para o administrador pelo WhatsApp.");
+        }
+    };
     
     const isLoading = isLoadingData || isFetchingRequests;
 
@@ -72,11 +118,20 @@ const EntregadorDashboard: React.FC = () => {
         <>
             <div className="min-h-screen bg-gray-100">
                 <Header onLogoutRequest={logout} />
-                <main className="p-4 sm:p-8">
+                <main className="p-4 sm:p-8 pb-24">
                     <div className="max-w-4xl mx-auto">
-                        <div className="mb-6">
-                            <h2 className="text-3xl font-bold text-ds-vinho">Rota de Entregas</h2>
-                            <p className="text-gray-500">Lista de clientes para visita e atualização cadastral.</p>
+                        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h2 className="text-3xl font-bold text-ds-vinho">Rota de Entregas</h2>
+                                <p className="text-gray-500">Lista de clientes para visita.</p>
+                            </div>
+                            <button
+                                onClick={handleExportDailyReport}
+                                className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 transition-colors flex items-center shadow-md w-full sm:w-auto justify-center"
+                            >
+                                <WhatsAppIcon />
+                                Enviar Relatório do Dia
+                            </button>
                         </div>
 
                         <div className="mb-4">
