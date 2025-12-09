@@ -7,6 +7,12 @@ import { getUpdateRequests } from '../services/apiService';
 import Spinner from '../components/common/Spinner';
 import ClientUpdateModal from '../components/entregador/ClientUpdateModal';
 
+const MapIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+    </svg>
+);
+
 const EntregadorDashboard: React.FC = () => {
     const { logout } = useAuth();
     const { clients, isLoadingData, reloadData, setDirty } = useData();
@@ -51,6 +57,14 @@ const EntregadorDashboard: React.FC = () => {
         setDirty(true);
         setSelectedClient(null);
     }
+
+    const openGoogleMaps = (e: React.MouseEvent, client: Client) => {
+        e.stopPropagation(); // Impede que o modal de edição abra
+        const fullAddress = `${client.address}, ${client.addressNumber}, ${client.neighborhood}, ${client.city} - RS`;
+        const encodedAddress = encodeURIComponent(fullAddress);
+        const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+        window.open(mapUrl, '_blank');
+    };
     
     const isLoading = isLoadingData || isFetchingRequests;
 
@@ -80,25 +94,38 @@ const EntregadorDashboard: React.FC = () => {
                                 <ul className="divide-y divide-gray-200">
                                     {filteredClients.map(client => (
                                         <li key={client.id}>
-                                            <button 
-                                                onClick={() => setSelectedClient(client)}
-                                                className="w-full text-left p-4 hover:bg-gray-50 focus:outline-none focus:bg-ds-bege/30 transition-colors"
-                                            >
-                                                <div className="flex justify-between items-center">
+                                            <div className="flex w-full hover:bg-gray-50 transition-colors relative">
+                                                <button 
+                                                    onClick={() => setSelectedClient(client)}
+                                                    className="flex-grow text-left p-4 pr-16 focus:outline-none"
+                                                >
                                                     <div>
                                                         <p className="font-semibold text-ds-vinho">{client.name}</p>
-                                                        <p className="text-sm text-gray-600">{`${client.address}, ${client.addressNumber} - ${client.neighborhood}, ${client.city}`}</p>
+                                                        <p className="text-sm text-gray-600">{`${client.address}, ${client.addressNumber} - ${client.neighborhood}`}</p>
+                                                        <p className="text-xs text-gray-500">{client.city}</p>
                                                     </div>
-                                                    {updatedClientIds.has(client.id) ? (
-                                                        <span className="flex items-center gap-2 text-sm font-semibold text-green-600">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                                                            Atualizado
-                                                        </span>
-                                                    ) : (
-                                                         <span className="text-sm font-semibold text-yellow-600">Pendente</span>
-                                                    )}
+                                                    <div className="mt-1">
+                                                        {updatedClientIds.has(client.id) ? (
+                                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                                                Visitado
+                                                            </span>
+                                                        ) : (
+                                                             <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">Pendente</span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                                
+                                                <div className="flex items-center justify-center p-2 absolute right-2 top-1/2 -translate-y-1/2">
+                                                    <button
+                                                        onClick={(e) => openGoogleMaps(e, client)}
+                                                        className="bg-blue-100 text-blue-600 p-3 rounded-full hover:bg-blue-200 transition-colors shadow-sm"
+                                                        title="Abrir Rota no GPS"
+                                                    >
+                                                        <MapIcon />
+                                                    </button>
                                                 </div>
-                                            </button>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>

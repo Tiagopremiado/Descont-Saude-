@@ -1,5 +1,6 @@
-import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders, MOCK_UPDATE_REQUESTS } from './mockData';
-import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest } from '../types';
+
+import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders, MOCK_UPDATE_REQUESTS, MOCK_PLAN_CONFIG } from './mockData';
+import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest, PlanConfig } from '../types';
 
 // Simulate API delay
 const apiDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -414,3 +415,18 @@ export const rejectUpdateRequest = async (requestId: string): Promise<UpdateAppr
     MOCK_UPDATE_REQUESTS[requestIndex].status = 'rejected';
     return JSON.parse(JSON.stringify(MOCK_UPDATE_REQUESTS[requestIndex]));
 };
+
+// --- Plan Config Services ---
+
+export const getPlanConfig = async (): Promise<PlanConfig> => {
+    await apiDelay(200);
+    return JSON.parse(JSON.stringify(MOCK_PLAN_CONFIG));
+};
+
+export const updatePlanConfig = async (newConfig: PlanConfig): Promise<PlanConfig> => {
+    await apiDelay(400);
+    // Directly mutate MOCK_PLAN_CONFIG (imported from mockData) because it's a let variable there.
+    // In a real API, this would be a PUT request.
+    Object.assign(MOCK_PLAN_CONFIG, newConfig);
+    return JSON.parse(JSON.stringify(MOCK_PLAN_CONFIG));
+}

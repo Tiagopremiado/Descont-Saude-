@@ -1,3 +1,4 @@
+
 // types.ts
 
 export interface User {
@@ -115,4 +116,12 @@ export interface UpdateApprovalRequest {
         neighborhood: string;
         city: string;
     };
+}
+
+export interface PlanConfig {
+    individualPrice: number;      // 0 dependentes
+    familySmallPrice: number;     // 1 a 3 dependentes
+    familyMediumPrice: number;    // 4 dependentes
+    familyLargePrice: number;     // 5 dependentes
+    extraDependentPrice: number;  // Custo por dependente acima de 5
 }

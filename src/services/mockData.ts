@@ -1,5 +1,6 @@
+
 // services/mockData.ts
-import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, UpdateApprovalRequest } from '../types';
+import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, UpdateApprovalRequest, PlanConfig } from '../types';
 import { GOOGLE_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_DRIVE_SCOPE } from '../config';
 
 const BACKUP_STORAGE_KEY = 'descontsaude_backup_data';
@@ -39,7 +40,7 @@ const initializeGoogleClient = async () => {
     try {
         // Add a timeout to prevent getting stuck
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Tempo de carregamento da API do Google esgotado.')), 8000) // 8 second timeout
+            setTimeout(() => reject(new Error('Tempo de carregamento da API do Google esgotado.')), 3000) // Reduced to 3 seconds
         );
 
         await Promise.race([
@@ -120,6 +121,7 @@ export const saveBackupToDrive = async () => {
         payments: MOCK_PAYMENTS,
         reminders: MOCK_REMINDERS,
         updateRequests: MOCK_UPDATE_REQUESTS,
+        planConfig: MOCK_PLAN_CONFIG,
     };
     const backupContent = JSON.stringify(backupData, null, 2);
 
@@ -309,6 +311,13 @@ const initialClients: Client[] = rawClients.map((c: any, index: number) => ({
   annotations: c['Anotações'] || '',
 }));
 
+export const DEFAULT_PLAN_CONFIG: PlanConfig = {
+    individualPrice: 23.00,
+    familySmallPrice: 26.00, // 1-3
+    familyMediumPrice: 29.00, // 4
+    familyLargePrice: 33.00, // 5
+    extraDependentPrice: 6.00 // >5
+};
 
 export let MOCK_CLIENTS: Client[] = [];
 export let MOCK_USERS: User[] = [];
@@ -318,17 +327,19 @@ export let MOCK_REMINDERS: Reminder[] = [];
 export let MOCK_UPDATE_REQUESTS: UpdateApprovalRequest[] = [];
 export let MOCK_RATINGS: Rating[] = [];
 export let MOCK_SERVICE_HISTORY: ServiceHistoryItem[] = [];
+export let MOCK_PLAN_CONFIG: PlanConfig = DEFAULT_PLAN_CONFIG;
 
 export const saveReminders = () => {
     localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(MOCK_REMINDERS));
 };
 
-function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[] }) {
+function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[], planConfig?: PlanConfig }) {
     MOCK_CLIENTS = data.clients || [];
     MOCK_DOCTORS = data.doctors || [];
     MOCK_PAYMENTS = data.payments || [];
     MOCK_REMINDERS = data.reminders || []; // Handle backups with or without reminders
     MOCK_UPDATE_REQUESTS = data.updateRequests || [];
+    MOCK_PLAN_CONFIG = data.planConfig || DEFAULT_PLAN_CONFIG;
 
     MOCK_USERS = [
       { id: 'user1', name: 'Admin User', cpf: '111.111.111-11', phone: '(53) 991560861', role: 'admin' },
@@ -344,10 +355,8 @@ function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments:
     ];
 }
 
-
-// New central loading function
-export async function loadInitialData(): Promise<SyncStatus | null> {
-    // 1. Load from local storage first for speed
+// Function to synchronously load local data to prevent white screen
+export const loadLocalData = () => {
     try {
         const storedData = localStorage.getItem(BACKUP_STORAGE_KEY);
         if (storedData) {
@@ -355,17 +364,23 @@ export async function loadInitialData(): Promise<SyncStatus | null> {
             if (backup.clients && backup.doctors && backup.payments) {
                 applyBackupData(backup);
                 console.log("Data loaded from localStorage backup.");
+                return true;
             }
-        } else {
-            throw new Error("No backup found in localStorage.");
         }
     } catch (e) {
         console.warn("Using initial hardcoded data:", e);
-        applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [] });
     }
+    // Fallback if no local storage or error
+    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [], planConfig: DEFAULT_PLAN_CONFIG });
+    return false;
+};
 
-    // REMOVED separate reminder loading, as it's now part of the main backup object handled by applyBackupData.
-    
+
+// New central loading function
+export async function loadInitialData(): Promise<SyncStatus | null> {
+    // 1. Ensure local data is loaded (idempotent if already loaded)
+    loadLocalData();
+
     // 3. In the background, try to sync with Google Drive
     try {
         await initializeGoogleClient();
@@ -400,7 +415,7 @@ export async function loadInitialData(): Promise<SyncStatus | null> {
 }
 
 
-export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[] }) => {
+export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[], planConfig?: PlanConfig }) => {
   if (!data || !Array.isArray(data.clients) || !Array.isArray(data.doctors) || !Array.isArray(data.payments)) {
     throw new Error("Invalid backup file structure.");
   }
@@ -410,6 +425,7 @@ export const setBackupData = (data: { clients: Client[], doctors: Doctor[], paym
       ...data,
       reminders: data.reminders || [],
       updateRequests: data.updateRequests || [],
+      planConfig: data.planConfig || DEFAULT_PLAN_CONFIG
   };
 
   localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(completeData, null, 2));
@@ -423,6 +439,6 @@ export const resetData = () => {
     localStorage.removeItem(BACKUP_STORAGE_KEY);
     localStorage.removeItem(REMINDERS_STORAGE_KEY);
     localStorage.removeItem(DRIVE_METADATA_KEY);
-    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [] });
+    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [], planConfig: DEFAULT_PLAN_CONFIG });
     console.log("Data has been reset to initial state.");
 };
