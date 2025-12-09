@@ -10,7 +10,7 @@ import GenerationResultModal from '../components/admin/GenerationResultModal';
 import SaveChangesModal from '../components/admin/SaveChangesModal';
 import ApprovalManagement from '../components/admin/ApprovalManagement';
 import PlanConfigModal from '../components/admin/PlanConfigModal'; 
-import CourierFinance from '../components/admin/CourierFinance'; // Import new component
+import CourierFinance from '../components/admin/CourierFinance'; 
 import { setBackupData, resetData, saveBackupToDrive, syncFromDrive, isGoogleApiInitialized, mergeUpdateRequests } from '../services/mockData';
 import { useData } from '../context/DataContext'; 
 import { useAuth } from '../context/AuthContext'; 
@@ -42,6 +42,7 @@ const SyncIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>;
 const DeliveryIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" /></svg>;
 const SendRouteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" /><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /></svg>;
+const CodeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>;
 
 const ButtonSpinner = () => (
     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -116,8 +117,35 @@ const AdminDashboard: React.FC = () => {
         const link = document.createElement("a");
         const date = new Date().toISOString().slice(0, 10);
         link.href = jsonString;
-        link.download = `descontsaude_backup_${date}.json`;
+        link.download = `descontsaude_backup_local_${date}.json`;
         link.click();
+    };
+
+    // Função para exportar dados LIMPOS para o Desenvolvedor atualizar o código fonte
+    const handleExportSystemData = () => {
+        // Seleciona apenas os dados que devem ser persistentes no código
+        const systemData = {
+            clients,
+            doctors,
+            // Payments e reminders geralmente são dinâmicos e ficam no backup local/drive,
+            // mas se você quiser "resetar" o sistema com pagamentos atuais, eles podem ir.
+            // Para "atualização cadastral" e "lista de médicos", focamos nesses dois.
+        };
+        
+        const jsonString = JSON.stringify(systemData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const file = new File([blob], `dados_sistema_master_${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert("Arquivo 'dados_sistema_master.json' baixado!\n\nEnvie este arquivo para o desenvolvedor para que os Médicos e Clientes sejam atualizados definitivamente no código do sistema.");
     };
 
     // New Function: Send Route to Entregador
@@ -324,6 +352,16 @@ const AdminDashboard: React.FC = () => {
                                 {isSavingToDrive ? <ButtonSpinner /> : <GoogleDriveIcon />}
                                 {isSavingToDrive ? 'Salvando...' : 'Salvar'}
                             </button>
+                            
+                            {/* Botão de Exportação para o Desenvolvedor */}
+                            <button
+                                onClick={handleExportSystemData}
+                                className="flex items-center bg-indigo-600 text-white font-bold py-2 px-4 rounded-full hover:bg-indigo-700 transition-colors text-sm"
+                                title="Baixar dados atuais (Médicos/Clientes) para atualizar o código fonte do sistema"
+                            >
+                                <CodeIcon /> Baixar Dados para o Desenvolvedor
+                            </button>
+
                             <button onClick={() => setIsPlanConfigOpen(true)} className="flex items-center bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-80 transition-colors text-sm">
                                 <SettingsIcon /> Configurar Planos
                             </button>
