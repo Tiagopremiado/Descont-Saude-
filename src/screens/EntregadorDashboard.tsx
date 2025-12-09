@@ -173,6 +173,7 @@ const EntregadorDashboard: React.FC = () => {
                     console.error("Erro ao compartilhar:", error);
                 }
             } else {
+                // Fallback for Desktop/Browsers without file sharing support
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -181,7 +182,15 @@ const EntregadorDashboard: React.FC = () => {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                alert("Dia encerrado e cobrança gerada! Envie o arquivo baixado para o administrador.");
+                
+                // WhatsApp Logic
+                const adminPhone = "5553991560861"; 
+                const message = `*Relatório de Entregas - ${new Date().toLocaleDateString('pt-BR')}*\n\n✅ Entregas: ${currentRouteStats.delivered}\n💰 Valor: R$ ${currentRouteStats.currentEarnings.toFixed(2)}\n\n(O arquivo JSON foi baixado no seu dispositivo, por favor anexe-o aqui)`;
+                const waUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
+
+                if(window.confirm("Arquivo baixado!\n\nDeseja abrir o WhatsApp agora para enviar o relatório ao administrador?")) {
+                    window.open(waUrl, '_blank');
+                }
             }
 
             // Refresh data to update balance

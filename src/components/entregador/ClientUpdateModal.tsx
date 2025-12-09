@@ -119,8 +119,8 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
     }
 
     const handleRequestCard = async () => {
-        if (!cardRequestPerson) {
-            alert("Selecione uma pessoa.");
+        if (!cardRequestPerson.trim()) {
+            alert("Digite o nome da pessoa.");
             return;
         }
         setIsSaving(true);
@@ -134,7 +134,7 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
                 city: client.city
             };
             
-            const isTitular = cardRequestPerson === client.name;
+            const isTitular = cardRequestPerson.toLowerCase() === client.name.toLowerCase();
             const requestData = {
                 personName: cardRequestPerson,
                 role: isTitular ? 'Titular' : 'Dependente' as 'Titular' | 'Dependente'
@@ -323,19 +323,45 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
                 {actionMode === 'request_card' && (
                     <div className="space-y-4 animate-fade-in">
                         <h4 className="font-bold text-lg text-ds-vinho border-b pb-2">Solicitar 2ª Via de Cartão</h4>
-                        <p className="text-sm text-gray-600">Selecione quem precisa do cartão físico.</p>
+                        <p className="text-sm text-gray-600">Digite o nome da pessoa ou selecione da lista.</p>
                         
-                        <div className="space-y-2">
-                            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                                <input type="radio" name="card_person" checked={cardRequestPerson === client.name} onChange={() => setCardRequestPerson(client.name)} className="h-4 w-4 text-ds-vinho focus:ring-ds-dourado" />
-                                <span className="ml-3 font-medium text-gray-700">{client.name} (Titular)</span>
-                            </label>
-                            {client.dependents.map(dep => (
-                                <label key={dep.id} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                                    <input type="radio" name="card_person" checked={cardRequestPerson === dep.name} onChange={() => setCardRequestPerson(dep.name)} className="h-4 w-4 text-ds-vinho focus:ring-ds-dourado" />
-                                    <span className="ml-3 font-medium text-gray-700">{dep.name} ({dep.relationship})</span>
+                        <div>
+                            <label className={labelClass}>Nome impresso no cartão</label>
+                            <input
+                                type="text"
+                                value={cardRequestPerson}
+                                onChange={(e) => setCardRequestPerson(e.target.value)}
+                                className={inputClass}
+                                placeholder="Digite o nome..."
+                            />
+                        </div>
+
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <p className="text-xs font-bold text-gray-500 mb-2 uppercase">Seleção Rápida</p>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                <label className="flex items-center p-2 border rounded bg-white cursor-pointer hover:bg-gray-100">
+                                    <input 
+                                        type="radio" 
+                                        name="card_person" 
+                                        checked={cardRequestPerson === client.name} 
+                                        onChange={() => setCardRequestPerson(client.name)} 
+                                        className="h-4 w-4 text-ds-vinho focus:ring-ds-dourado" 
+                                    />
+                                    <span className="ml-3 text-sm font-medium text-gray-700">{client.name} (Titular)</span>
                                 </label>
-                            ))}
+                                {client.dependents.map(dep => (
+                                    <label key={dep.id} className="flex items-center p-2 border rounded bg-white cursor-pointer hover:bg-gray-100">
+                                        <input 
+                                            type="radio" 
+                                            name="card_person" 
+                                            checked={cardRequestPerson === dep.name} 
+                                            onChange={() => setCardRequestPerson(dep.name)} 
+                                            className="h-4 w-4 text-ds-vinho focus:ring-ds-dourado" 
+                                        />
+                                        <span className="ml-3 text-sm font-medium text-gray-700">{dep.name} ({dep.relationship})</span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="flex gap-3 pt-4">
