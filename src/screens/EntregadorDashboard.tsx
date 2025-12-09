@@ -4,9 +4,11 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import type { Client, UpdateApprovalRequest } from '../types';
 import { getUpdateRequests } from '../services/apiService';
-import { importRouteData } from '../services/mockData'; // Import helper
+import { importRouteData } from '../services/mockData';
 import Spinner from '../components/common/Spinner';
 import ClientUpdateModal from '../components/entregador/ClientUpdateModal';
+
+const DELIVERY_PRICE = 1.90;
 
 const MapIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -23,6 +25,12 @@ const WhatsAppIcon = () => (
 const ImportIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+    </svg>
+);
+
+const CheckCircleIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
     </svg>
 );
 
@@ -50,6 +58,18 @@ const EntregadorDashboard: React.FC = () => {
         return new Set(updateRequests.map(req => req.clientId));
     }, [updateRequests]);
 
+    // Calcular estatísticas da rota
+    const routeStats = useMemo(() => {
+        const activeClients = clients.filter(c => c.status === 'active');
+        const total = activeClients.length;
+        const delivered = updatedClientIds.size;
+        const pending = total - delivered;
+        const earnings = delivered * DELIVERY_PRICE;
+        const progress = total > 0 ? (delivered / total) * 100 : 0;
+
+        return { total, delivered, pending, earnings, progress };
+    }, [clients, updatedClientIds]);
+
     const filteredClients = useMemo(() => {
         return clients
             .filter(c => c.status === 'active')
@@ -73,7 +93,7 @@ const EntregadorDashboard: React.FC = () => {
     }
 
     const openGoogleMaps = (e: React.MouseEvent, client: Client) => {
-        e.stopPropagation(); // Impede que o modal de edição abra
+        e.stopPropagation(); 
         const fullAddress = `${client.address}, ${client.addressNumber}, ${client.neighborhood}, ${client.city} - RS`;
         const encodedAddress = encodeURIComponent(fullAddress);
         const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
@@ -81,7 +101,6 @@ const EntregadorDashboard: React.FC = () => {
     };
 
     const handleExportDailyReport = async () => {
-        // Pega as requisições de hoje
         const today = new Date().toDateString();
         const dailyUpdates = updateRequests.filter(req => new Date(req.requestedAt).toDateString() === today);
 
@@ -90,12 +109,10 @@ const EntregadorDashboard: React.FC = () => {
             return;
         }
 
-        // Cria o arquivo JSON
         const dataStr = JSON.stringify(dailyUpdates, null, 2);
         const blob = new Blob([dataStr], { type: "application/json" });
         const file = new File([blob], `relatorio_entregas_${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
 
-        // Tenta compartilhar nativamente (WhatsApp/Email)
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
@@ -107,7 +124,6 @@ const EntregadorDashboard: React.FC = () => {
                 console.error("Erro ao compartilhar:", error);
             }
         } else {
-            // Fallback: Baixa o arquivo para envio manual
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -137,7 +153,7 @@ const EntregadorDashboard: React.FC = () => {
                 
                 if (Array.isArray(newRouteData) && newRouteData.length > 0 && newRouteData[0].name) {
                     if(window.confirm("Isso atualizará os endereços dos clientes com o arquivo recebido. Suas visitas de hoje SERÃO MANTIDAS. Deseja continuar?")) {
-                        importRouteData(newRouteData); // Calls the safe import function
+                        importRouteData(newRouteData); 
                         reloadData();
                         alert("Rota e endereços atualizados com sucesso! Suas visitas foram preservadas.");
                     }
@@ -162,18 +178,55 @@ const EntregadorDashboard: React.FC = () => {
                 <Header onLogoutRequest={logout} />
                 <main className="p-4 sm:p-8 pb-24">
                     <div className="max-w-4xl mx-auto">
-                        <div className="mb-6 flex flex-col gap-4">
-                            <div>
-                                <h2 className="text-3xl font-bold text-ds-vinho">Rota de Entregas</h2>
-                                <p className="text-gray-500">Lista de clientes para visita.</p>
+                        
+                        {/* Painel de Produtividade */}
+                        <div className="bg-white rounded-xl shadow-lg border-l-4 border-ds-vinho p-4 mb-6 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 text-ds-vinho" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" />
+                                </svg>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center relative z-10">
+                                <div>
+                                    <h2 className="text-gray-500 text-sm font-semibold uppercase tracking-wide">Saldo a Receber</h2>
+                                    <p className="text-4xl font-bold text-green-600">R$ {routeStats.earnings.toFixed(2).replace('.', ',')}</p>
+                                    <p className="text-xs text-gray-400 mt-1">{routeStats.delivered} entregas x R$ {DELIVERY_PRICE.toFixed(2)}</p>
+                                </div>
+                                <div className="mt-4 sm:mt-0 flex gap-4 text-center">
+                                    <div className="bg-gray-100 rounded-lg p-2 min-w-[80px]">
+                                        <p className="text-xs text-gray-500 font-bold">ROTA</p>
+                                        <p className="text-xl font-bold text-gray-800">{routeStats.total}</p>
+                                    </div>
+                                    <div className="bg-green-50 rounded-lg p-2 min-w-[80px]">
+                                        <p className="text-xs text-green-600 font-bold">FEITO</p>
+                                        <p className="text-xl font-bold text-green-700">{routeStats.delivered}</p>
+                                    </div>
+                                    <div className="bg-orange-50 rounded-lg p-2 min-w-[80px]">
+                                        <p className="text-xs text-orange-600 font-bold">FALTA</p>
+                                        <p className="text-xl font-bold text-orange-700">{routeStats.pending}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-4">
+                                <div className="flex justify-between text-xs font-semibold text-gray-500 mb-1">
+                                    <span>Progresso da Rota</span>
+                                    <span>{Math.round(routeStats.progress)}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div className="bg-ds-vinho h-2.5 rounded-full transition-all duration-500" style={{ width: `${routeStats.progress}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Botões de Ação */}
+                        <div className="mb-6 flex flex-col gap-4">
+                            <div className="flex flex-col sm:flex-row gap-3 justify-end">
                                 <button
                                     onClick={handleImportRouteClick}
-                                    className="bg-blue-600 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-700 transition-colors flex items-center shadow-md w-full sm:w-auto justify-center"
+                                    className="bg-blue-600 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-700 transition-colors flex items-center justify-center shadow-md w-full sm:w-auto"
                                 >
                                     <ImportIcon />
-                                    Receber Rota Atualizada
+                                    Receber Rota
                                 </button>
                                 <input 
                                     type="file" 
@@ -184,10 +237,10 @@ const EntregadorDashboard: React.FC = () => {
                                 />
                                 <button
                                     onClick={handleExportDailyReport}
-                                    className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 transition-colors flex items-center shadow-md w-full sm:w-auto justify-center"
+                                    className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 transition-colors flex items-center justify-center shadow-md w-full sm:w-auto"
                                 >
                                     <WhatsAppIcon />
-                                    Enviar Relatório do Dia
+                                    Enviar Relatório
                                 </button>
                             </div>
                         </div>
@@ -195,7 +248,7 @@ const EntregadorDashboard: React.FC = () => {
                         <div className="mb-4">
                             <input
                                 type="text"
-                                placeholder="Buscar por nome ou endereço..."
+                                placeholder="Buscar cliente por nome ou endereço..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-ds-dourado focus:border-ds-dourado"
@@ -206,22 +259,24 @@ const EntregadorDashboard: React.FC = () => {
                             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                                 <ul className="divide-y divide-gray-200">
                                     {filteredClients.map(client => (
-                                        <li key={client.id}>
-                                            <div className="flex w-full hover:bg-gray-50 transition-colors relative">
+                                        <li key={client.id} className={updatedClientIds.has(client.id) ? "bg-gray-50 opacity-80" : ""}>
+                                            <div className="flex w-full hover:bg-gray-100 transition-colors relative">
                                                 <button 
                                                     onClick={() => setSelectedClient(client)}
                                                     className="flex-grow text-left p-4 pr-16 focus:outline-none"
                                                 >
                                                     <div>
-                                                        <p className="font-semibold text-ds-vinho">{client.name}</p>
+                                                        <p className={`font-semibold ${updatedClientIds.has(client.id) ? 'text-green-700' : 'text-ds-vinho'}`}>
+                                                            {client.name}
+                                                        </p>
                                                         <p className="text-sm text-gray-600">{`${client.address}, ${client.addressNumber} - ${client.neighborhood}`}</p>
                                                         <p className="text-xs text-gray-500">{client.city}</p>
                                                     </div>
                                                     <div className="mt-1">
                                                         {updatedClientIds.has(client.id) ? (
-                                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                                                                Visitado
+                                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                                                <CheckCircleIcon />
+                                                                Entregue
                                                             </span>
                                                         ) : (
                                                              <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">Pendente</span>

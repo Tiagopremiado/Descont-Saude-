@@ -101,6 +101,8 @@ export interface UpdateApprovalRequest {
     clientName: string;
     requestedAt: string; // ISO string
     status: 'pending' | 'approved' | 'rejected';
+    requestType: 'update' | 'cancellation'; // New field to distinguish type
+    cancellationReason?: string; // Reason if type is cancellation
     updates: {
         phone?: string;
         whatsapp?: string;

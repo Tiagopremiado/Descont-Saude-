@@ -39,7 +39,7 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
         rejected: { label: 'Rejeitado', bg: 'bg-red-100', text: 'text-red-800' },
     };
 
-    const hasNoChanges = (req: UpdateApprovalRequest) => Object.keys(req.updates).length === 0;
+    const hasNoChanges = (req: UpdateApprovalRequest) => Object.keys(req.updates).length === 0 && req.requestType !== 'cancellation';
 
     return (
         <Card title="Aprovações de Atualização Cadastral">
@@ -60,10 +60,17 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                 <div className="space-y-4">
                     {filteredRequests.length === 0 && <p className="text-center text-gray-500 py-8">Nenhuma solicitação encontrada para este filtro.</p>}
                     {filteredRequests.map(req => (
-                        <div key={req.id} className="bg-white border rounded-lg shadow-sm">
-                            <header className="flex justify-between items-center p-4 bg-gray-50 rounded-t-lg border-b">
+                        <div key={req.id} className={`bg-white border rounded-lg shadow-sm ${req.requestType === 'cancellation' ? 'border-red-300 bg-red-50' : ''}`}>
+                            <header className="flex justify-between items-center p-4 bg-gray-50/50 rounded-t-lg border-b">
                                 <div>
-                                    <h3 className="font-bold text-lg text-ds-vinho">{req.clientName}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-lg text-ds-vinho">{req.clientName}</h3>
+                                        {req.requestType === 'cancellation' && (
+                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-600 text-white animate-pulse">
+                                                SOLICITAÇÃO DE CANCELAMENTO
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="text-xs text-gray-500">Solicitado em: {new Date(req.requestedAt).toLocaleString('pt-BR')}</p>
                                 </div>
                                 <span className={`px-3 py-1 text-sm font-bold rounded-full ${statusMap[req.status].bg} ${statusMap[req.status].text}`}>
@@ -72,7 +79,13 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                             </header>
 
                             <div className="p-4">
-                                {hasNoChanges(req) ? (
+                                {req.requestType === 'cancellation' ? (
+                                    <div className="p-4 bg-white border border-red-200 rounded-md">
+                                        <p className="font-bold text-red-800 mb-1">Motivo informado pelo entregador:</p>
+                                        <p className="text-gray-800 italic">"{req.cancellationReason || 'Não especificado'}"</p>
+                                        <p className="text-xs text-gray-500 mt-3">Atenção: Ao aprovar, o cliente será marcado como INATIVO.</p>
+                                    </div>
+                                ) : hasNoChanges(req) ? (
                                     <div className="text-center p-4 bg-blue-50 text-blue-800 rounded-md">
                                         <p className="font-semibold">Nenhuma alteração foi enviada.</p>
                                         <p className="text-sm">O entregador confirmou que os dados atuais do cliente estão corretos.</p>
@@ -111,16 +124,16 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                                     <button
                                         onClick={() => handleAction(req.id, 'reject')}
                                         disabled={!!actionLoading}
-                                        className="bg-red-600 text-white font-bold py-2 px-4 rounded-full hover:bg-red-700 transition-colors disabled:opacity-50"
+                                        className="bg-gray-500 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600 transition-colors disabled:opacity-50"
                                     >
-                                        Rejeitar
+                                        Ignorar / Rejeitar
                                     </button>
                                      <button
                                         onClick={() => handleAction(req.id, 'approve')}
                                         disabled={!!actionLoading}
-                                        className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 transition-colors disabled:opacity-50"
+                                        className={`${req.requestType === 'cancellation' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-2 px-4 rounded-full transition-colors disabled:opacity-50`}
                                     >
-                                        Aprovar
+                                        {req.requestType === 'cancellation' ? 'Confirmar Cancelamento' : 'Aprovar Mudanças'}
                                     </button>
                                 </footer>
                             )}

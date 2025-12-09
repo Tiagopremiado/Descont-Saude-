@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Client, UpdateApprovalRequest } from '../../types';
 import Modal from '../common/Modal';
 import { submitUpdateRequest } from '../../services/apiService';
+import CancellationFlowModal from './CancellationFlowModal';
 
 interface ClientUpdateModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
     });
     const [isSaving, setIsSaving] = useState(false);
     const [dataConfirmed, setDataConfirmed] = useState(false);
+    const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -100,6 +102,23 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
     const labelClass = "block text-sm font-medium text-gray-500";
     const inputClass = "bg-white mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado";
 
+    // Close main modal when cancellation is done to refresh list
+    const handleCancellationDone = () => {
+        setIsCancellationModalOpen(false);
+        onUpdateComplete();
+    }
+
+    if (isCancellationModalOpen) {
+        return (
+            <CancellationFlowModal 
+                isOpen={isCancellationModalOpen} 
+                onClose={() => setIsCancellationModalOpen(false)} 
+                client={client}
+                onCancellationSubmitted={handleCancellationDone}
+            />
+        );
+    }
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Atualizar Cadastro de ${client.name}`}>
             <div className="space-y-4">
@@ -146,21 +165,30 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
                     </label>
                 </div>
                 
-                <div className="flex justify-end space-x-3 pt-2">
-                    <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isSaving}>
-                        Cancelar
+                <div className="flex justify-between items-center pt-2">
+                    <button 
+                        onClick={() => setIsCancellationModalOpen(true)}
+                        className="text-red-600 text-sm font-bold hover:underline"
+                    >
+                        Cliente quer Cancelar
                     </button>
-                    {hasChanges() ? (
-                        <button onClick={handleSubmit} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75" disabled={isSaving || !dataConfirmed}>
-                             {isSaving && <ButtonSpinner />}
-                            Enviar Atualização
+
+                    <div className="flex space-x-3">
+                        <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isSaving}>
+                            Cancelar
                         </button>
-                    ) : (
-                        <button onClick={handleConfirmAndClose} className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 flex items-center disabled:opacity-75" disabled={isSaving || !dataConfirmed}>
-                            {isSaving && <ButtonSpinner />}
-                            Confirmar Dados (sem alteração)
-                        </button>
-                    )}
+                        {hasChanges() ? (
+                            <button onClick={handleSubmit} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75" disabled={isSaving || !dataConfirmed}>
+                                {isSaving && <ButtonSpinner />}
+                                Enviar Atualização
+                            </button>
+                        ) : (
+                            <button onClick={handleConfirmAndClose} className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 flex items-center disabled:opacity-75" disabled={isSaving || !dataConfirmed}>
+                                {isSaving && <ButtonSpinner />}
+                                Confirmar Dados
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </Modal>

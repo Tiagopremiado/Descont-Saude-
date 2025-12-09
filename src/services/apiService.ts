@@ -368,7 +368,9 @@ export const getUpdateRequests = async (): Promise<UpdateApprovalRequest[]> => {
 export const submitUpdateRequest = async (
     clientId: string, 
     currentData: UpdateApprovalRequest['currentData'],
-    updates: UpdateApprovalRequest['updates']
+    updates: UpdateApprovalRequest['updates'],
+    requestType: 'update' | 'cancellation' = 'update',
+    cancellationReason?: string
 ): Promise<UpdateApprovalRequest> => {
     await apiDelay(700);
     const client = MOCK_CLIENTS.find(c => c.id === clientId);
@@ -380,6 +382,8 @@ export const submitUpdateRequest = async (
         clientName: client.name,
         requestedAt: new Date().toISOString(),
         status: 'pending',
+        requestType,
+        cancellationReason,
         currentData,
         updates,
     };
@@ -394,17 +398,26 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
 
     const request = MOCK_UPDATE_REQUESTS[requestIndex];
     const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === request.clientId);
+    
     if (clientIndex === -1) {
         MOCK_UPDATE_REQUESTS[requestIndex].status = 'rejected';
         return null;
     }
 
-    const updatedClientData = { ...MOCK_CLIENTS[clientIndex], ...request.updates };
-    MOCK_CLIENTS[clientIndex] = updatedClientData;
+    if (request.requestType === 'cancellation') {
+        // If it's a cancellation approval, set status to inactive
+        MOCK_CLIENTS[clientIndex].status = 'inactive';
+        // Add annotation
+        MOCK_CLIENTS[clientIndex].annotations += `\n[CANCELAMENTO] Solicitado em ${new Date(request.requestedAt).toLocaleDateString()}. Motivo: ${request.cancellationReason || 'Não informado'}. Aprovado em ${new Date().toLocaleDateString()}.`;
+    } else {
+        // Normal update
+        const updatedClientData = { ...MOCK_CLIENTS[clientIndex], ...request.updates };
+        MOCK_CLIENTS[clientIndex] = updatedClientData;
+    }
     
     MOCK_UPDATE_REQUESTS[requestIndex].status = 'approved';
 
-    return JSON.parse(JSON.stringify(updatedClientData));
+    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
 export const rejectUpdateRequest = async (requestId: string): Promise<UpdateApprovalRequest | null> => {
