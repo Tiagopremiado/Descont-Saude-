@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import type { Client, UpdateApprovalRequest } from '../types';
 import { getUpdateRequests } from '../services/apiService';
+import { importRouteData } from '../services/mockData'; // Import helper
 import Spinner from '../components/common/Spinner';
 import ClientUpdateModal from '../components/entregador/ClientUpdateModal';
 
@@ -19,6 +20,12 @@ const WhatsAppIcon = () => (
     </svg>
 );
 
+const ImportIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+    </svg>
+);
+
 const EntregadorDashboard: React.FC = () => {
     const { logout } = useAuth();
     const { clients, isLoadingData, reloadData, setDirty } = useData();
@@ -26,6 +33,7 @@ const EntregadorDashboard: React.FC = () => {
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isFetchingRequests, setIsFetchingRequests] = useState(true);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchRequests = async () => {
         setIsFetchingRequests(true);
@@ -111,6 +119,40 @@ const EntregadorDashboard: React.FC = () => {
             alert("Arquivo baixado! Por favor, envie o arquivo manualmente para o administrador pelo WhatsApp.");
         }
     };
+
+    const handleImportRouteClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleRouteFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result;
+                if (typeof text !== 'string') throw new Error("Failed to read file.");
+                const newRouteData = JSON.parse(text);
+                
+                if (Array.isArray(newRouteData) && newRouteData.length > 0 && newRouteData[0].name) {
+                    if(window.confirm("Isso atualizará os endereços dos clientes com o arquivo recebido. Suas visitas de hoje SERÃO MANTIDAS. Deseja continuar?")) {
+                        importRouteData(newRouteData); // Calls the safe import function
+                        reloadData();
+                        alert("Rota e endereços atualizados com sucesso! Suas visitas foram preservadas.");
+                    }
+                } else {
+                    throw new Error("Formato de arquivo inválido. Certifique-se que é o arquivo de rota enviado pelo Admin.");
+                }
+            } catch (error) {
+                console.error("Error parsing route file:", error);
+                alert("Erro ao ler o arquivo. Verifique se o arquivo está correto.");
+            } finally {
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+        };
+        reader.readAsText(file);
+    }
     
     const isLoading = isLoadingData || isFetchingRequests;
 
@@ -120,18 +162,34 @@ const EntregadorDashboard: React.FC = () => {
                 <Header onLogoutRequest={logout} />
                 <main className="p-4 sm:p-8 pb-24">
                     <div className="max-w-4xl mx-auto">
-                        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="mb-6 flex flex-col gap-4">
                             <div>
                                 <h2 className="text-3xl font-bold text-ds-vinho">Rota de Entregas</h2>
                                 <p className="text-gray-500">Lista de clientes para visita.</p>
                             </div>
-                            <button
-                                onClick={handleExportDailyReport}
-                                className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 transition-colors flex items-center shadow-md w-full sm:w-auto justify-center"
-                            >
-                                <WhatsAppIcon />
-                                Enviar Relatório do Dia
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button
+                                    onClick={handleImportRouteClick}
+                                    className="bg-blue-600 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-700 transition-colors flex items-center shadow-md w-full sm:w-auto justify-center"
+                                >
+                                    <ImportIcon />
+                                    Receber Rota Atualizada
+                                </button>
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={handleRouteFileChange} 
+                                    className="hidden" 
+                                    accept=".json" 
+                                />
+                                <button
+                                    onClick={handleExportDailyReport}
+                                    className="bg-green-600 text-white font-bold py-2 px-4 rounded-full hover:bg-green-700 transition-colors flex items-center shadow-md w-full sm:w-auto justify-center"
+                                >
+                                    <WhatsAppIcon />
+                                    Enviar Relatório do Dia
+                                </button>
+                            </div>
                         </div>
 
                         <div className="mb-4">

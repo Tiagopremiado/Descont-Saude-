@@ -464,3 +464,32 @@ export const mergeUpdateRequests = (incomingRequests: UpdateApprovalRequest[]) =
     
     return addedCount;
 };
+
+// Function specifically for Entregador to update Clients DB without losing local work (updateRequests)
+export const importRouteData = (newClients: Client[]) => {
+    // 1. Update the Clients list in memory
+    MOCK_CLIENTS = newClients;
+
+    // 2. We do NOT touch MOCK_UPDATE_REQUESTS, so the Entregador keeps their daily work.
+    
+    // 3. Re-save everything to local storage
+    const currentData = JSON.parse(localStorage.getItem(BACKUP_STORAGE_KEY) || '{}');
+    
+    const newData = {
+        ...currentData,
+        clients: MOCK_CLIENTS,
+        // Ensure other fields are preserved if they existed in currentData, or default if not
+        doctors: currentData.doctors || MOCK_DOCTORS,
+        payments: currentData.payments || MOCK_PAYMENTS,
+        planConfig: currentData.planConfig || MOCK_PLAN_CONFIG,
+        // Critical: Preserve reminders and requests
+        reminders: currentData.reminders || MOCK_REMINDERS, 
+        updateRequests: currentData.updateRequests || MOCK_UPDATE_REQUESTS 
+    };
+
+    localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(newData, null, 2));
+    
+    // Re-apply to ensure MOCK_USERS and others are synced
+    applyBackupData(newData);
+    console.log("Route data updated successfully. Local progress preserved.");
+};
