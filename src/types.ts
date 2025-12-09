@@ -31,6 +31,7 @@ export interface Client {
   phone: string;
   whatsapp: string;
   email: string;
+  cep?: string; // Added field
   address: string;
   addressNumber: string;
   neighborhood: string;

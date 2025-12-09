@@ -181,6 +181,23 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                 <input type="text" name="cpf" id="edit-cpf" value={formData.cpf} onChange={handleChange} className={inputClass} required maxLength={14} placeholder="000.000.000-00" />
                             </div>
                             <div>
+                                <label htmlFor="edit-birthDate" className={labelClass}>Data Nascimento</label>
+                                <input type="date" name="birthDate" id="edit-birthDate" value={formData.birthDate ? formData.birthDate.split('T')[0] : ''} onChange={handleChange} className={inputClass} />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-gender" className={labelClass}>Sexo</label>
+                                <select name="gender" id="edit-gender" value={formData.gender} onChange={handleChange} className={selectClass}>
+                                    <option value="">Selecione</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Feminino</option>
+                                    <option value="X">Outro</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <h4 className="font-bold text-gray-700 mt-4 mb-2">Contatos</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
                                 <label htmlFor="edit-email" className={labelClass}>Email</label>
                                 <input type="email" name="email" id="edit-email" value={formData.email} onChange={handleChange} className={inputClass} required />
                             </div>
@@ -188,10 +205,36 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                 <label htmlFor="edit-phone" className={labelClass}>Telefone</label>
                                 <input type="tel" name="phone" id="edit-phone" value={formData.phone} onChange={handleChange} className={inputClass} required />
                             </div>
+                            <div>
+                                <label htmlFor="edit-whatsapp" className={labelClass}>WhatsApp</label>
+                                <input type="tel" name="whatsapp" id="edit-whatsapp" value={formData.whatsapp || ''} onChange={handleChange} className={inputClass} />
+                            </div>
                         </div>
-                        <div className="mt-4">
-                            <label htmlFor="edit-address" className={labelClass}>Endereço</label>
-                            <input type="text" name="address" id="edit-address" value={formData.address} onChange={handleChange} className={inputClass} required />
+
+                        <h4 className="font-bold text-gray-700 mt-4 mb-2">Endereço</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label htmlFor="edit-cep" className={labelClass}>CEP</label>
+                                <input type="text" name="cep" id="edit-cep" value={formData.cep || ''} onChange={handleChange} className={inputClass} placeholder="00000-000" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="edit-address" className={labelClass}>Endereço (Rua)</label>
+                                <input type="text" name="address" id="edit-address" value={formData.address} onChange={handleChange} className={inputClass} required />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-addressNumber" className={labelClass}>Número</label>
+                                <input type="text" name="addressNumber" id="edit-addressNumber" value={formData.addressNumber || ''} onChange={handleChange} className={inputClass} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <div>
+                                <label htmlFor="edit-neighborhood" className={labelClass}>Bairro</label>
+                                <input type="text" name="neighborhood" id="edit-neighborhood" value={formData.neighborhood || ''} onChange={handleChange} className={inputClass} />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-city" className={labelClass}>Cidade</label>
+                                <input type="text" name="city" id="edit-city" value={formData.city || ''} onChange={handleChange} className={inputClass} />
+                            </div>
                         </div>
                     </div>
                     <hr/>
@@ -272,7 +315,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                         <div className="flex-1">
                                             <p className="font-medium text-gray-800">{dep.name}</p>
                                             <p className="text-sm text-gray-500">{dep.relationship} - CPF: {dep.cpf}</p>
-                                            <p className="text-xs text-gray-400">Nasc: {new Date(dep.birthDate).toLocaleDateString('pt-BR')}</p>
+                                            <p className="text-xs text-gray-400">Nasc: {new Date(dep.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             {getDependentStatusChip(dep.status)}

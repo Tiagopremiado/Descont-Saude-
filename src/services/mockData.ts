@@ -295,6 +295,7 @@ const initialClients: Client[] = rawClients.map((c: any, index: number) => ({
   phone: `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
   whatsapp: `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
   email: c['E-mail'] || 'email@naoinformado.com',
+  cep: c['CEP'] || '',
   address: c['Endereço'] || 'Não informado',
   addressNumber: c['Número'] || 'S/N',
   neighborhood: c['Bairro'] || 'Não informado',
