@@ -1,5 +1,5 @@
 // services/mockData.ts
-import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, UpdateApprovalRequest, PlanConfig } from '../types';
+import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, UpdateApprovalRequest, PlanConfig, CourierFinancialRecord } from '../types';
 import { GOOGLE_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_DRIVE_SCOPE } from '../config';
 
 const BACKUP_STORAGE_KEY = 'descontsaude_backup_data';
@@ -121,6 +121,7 @@ export const saveBackupToDrive = async () => {
         reminders: MOCK_REMINDERS,
         updateRequests: MOCK_UPDATE_REQUESTS,
         planConfig: MOCK_PLAN_CONFIG,
+        financialRecords: MOCK_FINANCIAL_RECORDS, // Save financial records
     };
     const backupContent = JSON.stringify(backupData, null, 2);
 
@@ -230,6 +231,7 @@ export async function syncFromDrive(): Promise<SyncStatus> {
 
 
 const parseDependents = (clientData: any): any[] => {
+    // ... implementation same as before
     const dependents = [];
     for (let i = 1; i <= 6; i++) {
         const field = `Campos Personalizado ${i}`;
@@ -263,7 +265,7 @@ const parseDependents = (clientData: any): any[] => {
 };
 
 const rawClients = [
- // ... (JSON data omitted for brevity)
+ // ... (JSON data omitted for brevity - no changes here)
  {
   "Código": "FFADA80BAE774145908E06EFF854C239",
   "Nome": "Elizabete Pinheiro da Rosa",
@@ -281,7 +283,7 @@ const rawClients = [
 ];
 
 const initialDoctors: Doctor[] = [
-  // ... (Doctor data omitted for brevity)
+  // ... (Doctor data omitted for brevity - no changes here)
   { id: 'doc32', name: 'Farmácia Agafarma', specialty: 'Farmácia', address: 'Rua Comendador Freitas, 219', city: 'Piratini', phone: '(53) 3257-1191' }
 ];
 
@@ -328,18 +330,20 @@ export let MOCK_UPDATE_REQUESTS: UpdateApprovalRequest[] = [];
 export let MOCK_RATINGS: Rating[] = [];
 export let MOCK_SERVICE_HISTORY: ServiceHistoryItem[] = [];
 export let MOCK_PLAN_CONFIG: PlanConfig = DEFAULT_PLAN_CONFIG;
+export let MOCK_FINANCIAL_RECORDS: CourierFinancialRecord[] = []; // Initialize financial records
 
 export const saveReminders = () => {
     localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(MOCK_REMINDERS));
 };
 
-function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[], planConfig?: PlanConfig }) {
+function applyBackupData(data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[], planConfig?: PlanConfig, financialRecords?: CourierFinancialRecord[] }) {
     MOCK_CLIENTS = data.clients || [];
     MOCK_DOCTORS = data.doctors || [];
     MOCK_PAYMENTS = data.payments || [];
-    MOCK_REMINDERS = data.reminders || []; // Handle backups with or without reminders
+    MOCK_REMINDERS = data.reminders || [];
     MOCK_UPDATE_REQUESTS = data.updateRequests || [];
     MOCK_PLAN_CONFIG = data.planConfig || DEFAULT_PLAN_CONFIG;
+    MOCK_FINANCIAL_RECORDS = data.financialRecords || []; // Load financial records
 
     MOCK_USERS = [
       { id: 'user1', name: 'Admin User', cpf: '111.111.111-11', phone: '(53) 991560861', role: 'admin' },
@@ -371,7 +375,7 @@ export const loadLocalData = () => {
         console.warn("Using initial hardcoded data:", e);
     }
     // Fallback if no local storage or error
-    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [], planConfig: DEFAULT_PLAN_CONFIG });
+    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [], planConfig: DEFAULT_PLAN_CONFIG, financialRecords: [] });
     return false;
 };
 
@@ -415,7 +419,7 @@ export async function loadInitialData(): Promise<SyncStatus | null> {
 }
 
 
-export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[], planConfig?: PlanConfig }) => {
+export const setBackupData = (data: { clients: Client[], doctors: Doctor[], payments: Payment[], reminders?: Reminder[], updateRequests?: UpdateApprovalRequest[], planConfig?: PlanConfig, financialRecords?: CourierFinancialRecord[] }) => {
   if (!data || !Array.isArray(data.clients) || !Array.isArray(data.doctors) || !Array.isArray(data.payments)) {
     throw new Error("Invalid backup file structure.");
   }
@@ -425,7 +429,8 @@ export const setBackupData = (data: { clients: Client[], doctors: Doctor[], paym
       ...data,
       reminders: data.reminders || [],
       updateRequests: data.updateRequests || [],
-      planConfig: data.planConfig || DEFAULT_PLAN_CONFIG
+      planConfig: data.planConfig || DEFAULT_PLAN_CONFIG,
+      financialRecords: data.financialRecords || []
   };
 
   localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(completeData, null, 2));
@@ -439,7 +444,7 @@ export const resetData = () => {
     localStorage.removeItem(BACKUP_STORAGE_KEY);
     localStorage.removeItem(REMINDERS_STORAGE_KEY);
     localStorage.removeItem(DRIVE_METADATA_KEY);
-    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [], planConfig: DEFAULT_PLAN_CONFIG });
+    applyBackupData({ clients: initialClients, doctors: initialDoctors, payments: [], reminders: [], updateRequests: [], planConfig: DEFAULT_PLAN_CONFIG, financialRecords: [] });
     console.log("Data has been reset to initial state.");
 };
 
@@ -484,7 +489,8 @@ export const importRouteData = (newClients: Client[]) => {
         planConfig: currentData.planConfig || MOCK_PLAN_CONFIG,
         // Critical: Preserve reminders and requests
         reminders: currentData.reminders || MOCK_REMINDERS, 
-        updateRequests: currentData.updateRequests || MOCK_UPDATE_REQUESTS 
+        updateRequests: currentData.updateRequests || MOCK_UPDATE_REQUESTS,
+        financialRecords: currentData.financialRecords || MOCK_FINANCIAL_RECORDS
     };
 
     localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(newData, null, 2));

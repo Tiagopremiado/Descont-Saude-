@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Client, Dependent } from '../../types';
-import { updateClient, approveDependent, rejectDependent, inactivateDependent, reactivateDependent, resetClientPassword, addDependent } from '../../services/apiService';
+import { updateClient, approveDependent, rejectDependent, inactivateDependent, reactivateDependent, resetClientPassword, addDependent, requestDelivery } from '../../services/apiService';
 import { formatCPF } from '../../utils/cpfValidator';
 import Modal from '../common/Modal';
 import Spinner from '../common/Spinner';
@@ -105,6 +105,18 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
     }
   }
 
+  const handleRequestCardDelivery = async () => {
+      if(window.confirm("Isso marcará este cliente para receber o Cartão Físico na próxima rota. Confirmar?")) {
+          try {
+              const updated = await requestDelivery(client.id, 'card', 'Entregar Cartão Físico');
+              setFormData(updated);
+              alert("Solicitação de entrega de cartão registrada! Exporte a rota para atualizar o entregador.");
+          } catch(e) {
+              alert("Erro ao solicitar entrega.");
+          }
+      }
+  }
+
   const getDependentStatusChip = (status: Dependent['status']) => {
     const styles = {
         active: 'bg-green-100 text-green-800',
@@ -139,6 +151,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
   const selectClass = `${inputClass}`;
   
   const KeyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L4 19.743V16a1 1 0 00-2 0v4a1 1 0 001 1h4a1 1 0 000-2H5.257l5.9-5.9A6 6 0 1118 8zm-6-4a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd" /></svg>;
+  const TruckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" /></svg>;
 
   const TabButton: React.FC<{tab: 'data' | 'billings', label: string}> = ({ tab, label }) => (
     <button
@@ -262,6 +275,12 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                 </select>
                             </div>
                         </div>
+                        {formData.deliveryStatus && formData.deliveryStatus.pending && (
+                            <div className="mt-2 bg-yellow-50 p-2 rounded border border-yellow-200 text-sm text-yellow-800 flex items-center">
+                                <span className="mr-2">🚚</span>
+                                <strong>Entrega Pendente:</strong> {formData.deliveryStatus.description || formData.deliveryStatus.type}
+                            </div>
+                        )}
                     </div>
                     <hr/>
                     {/* Annotations Section */}
@@ -281,23 +300,32 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                     </div>
                     </fieldset>
                     <hr/>
-                    {/* Login Section */}
+                    {/* Login and Actions Section */}
                     <div>
-                        <h4 className="font-bold text-gray-700 mb-2">Acesso ao Portal</h4>
+                        <h4 className="font-bold text-gray-700 mb-2">Acesso e Ações Rápidas</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                             <div>
                                 <label className={labelClass}>Login</label>
                                 <p className="text-sm text-gray-600 mt-1">O cliente acessa com o CPF (<span className="font-semibold">{formData.cpf}</span>) ou Telefone (<span className="font-semibold">{formData.phone}</span>).</p>
                             </div>
-                            <div>
-                                <label className={labelClass}>Senha</label>
-                                <button 
-                                    type="button" 
-                                    onClick={() => setIsResetPasswordModalOpen(true)}
-                                    className="flex items-center justify-center w-full mt-1 bg-red-100 text-red-700 font-bold py-2 px-4 rounded-full hover:bg-red-200 transition-colors text-sm"
-                                >
-                                <KeyIcon /> Resetar Senha
-                                </button>
+                            <div className="flex flex-col gap-2">
+                                <label className={labelClass}>Ações</label>
+                                <div className="flex gap-2">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setIsResetPasswordModalOpen(true)}
+                                        className="flex-1 flex items-center justify-center bg-red-100 text-red-700 font-bold py-2 px-4 rounded-full hover:bg-red-200 transition-colors text-xs"
+                                    >
+                                    <KeyIcon /> Resetar Senha
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={handleRequestCardDelivery}
+                                        className="flex-1 flex items-center justify-center bg-blue-100 text-blue-700 font-bold py-2 px-4 rounded-full hover:bg-blue-200 transition-colors text-xs"
+                                    >
+                                    <TruckIcon /> Solicitar Entrega Cartão
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

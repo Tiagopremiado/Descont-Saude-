@@ -45,6 +45,11 @@ export interface Client {
   status: 'active' | 'pending' | 'inactive';
   dependents: Dependent[];
   annotations: string;
+  deliveryStatus?: {
+      pending: boolean;
+      type: 'new_contract' | 'carnet' | 'card' | 'other';
+      description?: string;
+  };
 }
 
 export interface Payment {
@@ -127,4 +132,14 @@ export interface PlanConfig {
     familyMediumPrice: number;    // 4 dependentes
     familyLargePrice: number;     // 5 dependentes
     extraDependentPrice: number;  // Custo por dependente acima de 5
+}
+
+// New Interface for Courier Finance
+export interface CourierFinancialRecord {
+    id: string;
+    date: string; // ISO string (Day of work)
+    deliveriesCount: number;
+    totalAmount: number;
+    status: 'pending' | 'paid';
+    paidAt?: string; // ISO string
 }

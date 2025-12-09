@@ -9,7 +9,8 @@ import CarnetGeneration from '../components/admin/CarnetGeneration';
 import GenerationResultModal from '../components/admin/GenerationResultModal';
 import SaveChangesModal from '../components/admin/SaveChangesModal';
 import ApprovalManagement from '../components/admin/ApprovalManagement';
-import PlanConfigModal from '../components/admin/PlanConfigModal'; // Import
+import PlanConfigModal from '../components/admin/PlanConfigModal'; 
+import CourierFinance from '../components/admin/CourierFinance'; // Import new component
 import { setBackupData, resetData, saveBackupToDrive, syncFromDrive, isGoogleApiInitialized, mergeUpdateRequests } from '../services/mockData';
 import { useData } from '../context/DataContext'; 
 import { useAuth } from '../context/AuthContext'; 
@@ -22,7 +23,7 @@ declare global {
     }
 }
 
-type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 'carnet' | 'approvals';
+type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 'carnet' | 'approvals' | 'courier_finance';
 
 interface SyncStatus {
     message: string;
@@ -40,7 +41,7 @@ const GoogleDriveIcon = () => (
 const SyncIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.898 2.188l-1.583.791A5.002 5.002 0 005.999 7H8a1 1 0 010 2H3a1 1 0 01-1-1V3a1 1 0 011-1zm12 14a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.898-2.188l1.583-.791A5.002 5.002 0 0014.001 13H12a1 1 0 010-2h5a1 1 0 011 1v5a1 1 0 01-1 1z" clipRule="evenodd" /></svg>;
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>;
 const DeliveryIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" /></svg>;
-const SendRouteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" /><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /></svg>; // Placeholder icon
+const SendRouteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" /><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /></svg>;
 
 const ButtonSpinner = () => (
     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -61,7 +62,7 @@ const AdminDashboard: React.FC = () => {
     const [isSyncingFromDrive, setIsSyncingFromDrive] = useState(false);
     const [isGoogleReady, setIsGoogleReady] = useState(isGoogleApiInitialized());
     const [notification, setNotification] = useState<SyncStatus | null>(null);
-    const [isPlanConfigOpen, setIsPlanConfigOpen] = useState(false); // New state
+    const [isPlanConfigOpen, setIsPlanConfigOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -270,6 +271,7 @@ const AdminDashboard: React.FC = () => {
             case 'doctors': return <DoctorManagement onUpdate={handleDataUpdate} />;
             case 'invoices': return <InvoiceGeneration />;
             case 'carnet': return <CarnetGeneration clients={clients} onUpdate={handleDataUpdate} />;
+            case 'courier_finance': return <CourierFinance onUpdate={handleDataUpdate} />;
             default: return null;
         }
     };
@@ -348,6 +350,7 @@ const AdminDashboard: React.FC = () => {
                         <nav className="-mb-px flex space-x-4 overflow-x-auto pb-px">
                             <TabButton tab="clients" label="Gerenciar Clientes" count={pendingClientItemsCount} />
                             <TabButton tab="approvals" label="Aprovações" count={pendingApprovalCount} />
+                            <TabButton tab="courier_finance" label="Pagamentos Entregador" />
                             <TabButton tab="reminders" label="Lembretes" count={pendingRemindersCount} />
                             <TabButton tab="payments" label="Relatório de Pagamentos" />
                             <TabButton tab="invoices" label="Notas Fiscais" />

@@ -1,10 +1,11 @@
 
-import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders, MOCK_UPDATE_REQUESTS, MOCK_PLAN_CONFIG } from './mockData';
-import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest, PlanConfig } from '../types';
+import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders, MOCK_UPDATE_REQUESTS, MOCK_PLAN_CONFIG, MOCK_FINANCIAL_RECORDS } from './mockData';
+import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest, PlanConfig, CourierFinancialRecord } from '../types';
 
 // Simulate API delay
 const apiDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+// ... (existing client, dependent, payment, doctor, reminder services - KEEP THEM) ...
 // --- Client Services ---
 
 export const getClients = async (): Promise<Client[]> => {
@@ -25,6 +26,12 @@ export const addClient = async (clientData: Omit<Client, 'id' | 'contractNumber'
         ...clientData,
         id: `client${timestamp}`,
         contractNumber: `019${String(timestamp).slice(-8)}`,
+        // Automatically mark new clients for contract delivery
+        deliveryStatus: {
+            pending: true,
+            type: 'new_contract',
+            description: 'Entregar Contrato e Boas Vindas'
+        },
         dependents: clientData.dependents.map((dep, index) => ({
             ...dep,
             id: `dep${Date.now()}${index}`,
@@ -44,6 +51,21 @@ export const updateClient = async (id: string, updatedData: Client): Promise<Cli
     }
     MOCK_CLIENTS[clientIndex] = JSON.parse(JSON.stringify(updatedData));
     return MOCK_CLIENTS[clientIndex];
+};
+
+// New function to manually set delivery status (e.g., for cards)
+export const requestDelivery = async (clientId: string, type: Client['deliveryStatus']['type'], description: string): Promise<Client> => {
+    await apiDelay(400);
+    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
+    if (clientIndex === -1) throw new Error("Client not found");
+
+    MOCK_CLIENTS[clientIndex].deliveryStatus = {
+        pending: true,
+        type,
+        description
+    };
+    
+    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
 export const resetClientPassword = async (clientId: string): Promise<{ success: true }> => {
@@ -228,8 +250,9 @@ const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Jul
 
 export const generateAnnualCarnet = async (clientId: string, year: number): Promise<Payment[]> => {
     await apiDelay(1500);
-    const client = MOCK_CLIENTS.find(c => c.id === clientId);
-    if (!client) throw new Error("Client not found");
+    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
+    if (clientIndex === -1) throw new Error("Client not found");
+    const client = MOCK_CLIENTS[clientIndex];
 
     const existingPaymentsForYear = MOCK_PAYMENTS.filter(p => p.clientId === clientId && p.year === year);
     const existingMonths = existingPaymentsForYear.map(p => p.month);
@@ -253,6 +276,13 @@ export const generateAnnualCarnet = async (clientId: string, year: number): Prom
     }
 
     MOCK_PAYMENTS.push(...newPayments);
+
+    // Automatically mark client for Carnet delivery
+    MOCK_CLIENTS[clientIndex].deliveryStatus = {
+        pending: true,
+        type: 'carnet',
+        description: `Entregar Carnê ${year}`
+    };
 
     return JSON.parse(JSON.stringify(newPayments));
 };
@@ -391,6 +421,17 @@ export const submitUpdateRequest = async (
     return JSON.parse(JSON.stringify(newRequest));
 };
 
+export const deletePendingRequestByClientId = async (clientId: string): Promise<{ success: true }> => {
+    await apiDelay(400);
+    const indexToDelete = MOCK_UPDATE_REQUESTS.findIndex(r => r.clientId === clientId && r.status === 'pending');
+    
+    if (indexToDelete !== -1) {
+        MOCK_UPDATE_REQUESTS.splice(indexToDelete, 1);
+    }
+    
+    return { success: true };
+};
+
 export const approveUpdateRequest = async (requestId: string): Promise<Client | null> => {
     await apiDelay(800);
     const requestIndex = MOCK_UPDATE_REQUESTS.findIndex(r => r.id === requestId);
@@ -442,4 +483,35 @@ export const updatePlanConfig = async (newConfig: PlanConfig): Promise<PlanConfi
     // In a real API, this would be a PUT request.
     Object.assign(MOCK_PLAN_CONFIG, newConfig);
     return JSON.parse(JSON.stringify(MOCK_PLAN_CONFIG));
+}
+
+// --- Courier Financial Services ---
+
+export const getCourierFinancialRecords = async (): Promise<CourierFinancialRecord[]> => {
+    await apiDelay(300);
+    return JSON.parse(JSON.stringify(MOCK_FINANCIAL_RECORDS));
+}
+
+export const createDailyFinancialRecord = async (deliveriesCount: number, rate: number = 1.90): Promise<CourierFinancialRecord> => {
+    await apiDelay(500);
+    const newRecord: CourierFinancialRecord = {
+        id: `fin-${Date.now()}`,
+        date: new Date().toISOString(),
+        deliveriesCount,
+        totalAmount: deliveriesCount * rate,
+        status: 'pending'
+    };
+    MOCK_FINANCIAL_RECORDS.unshift(newRecord);
+    return JSON.parse(JSON.stringify(newRecord));
+}
+
+export const markFinancialRecordAsPaid = async (recordId: string): Promise<CourierFinancialRecord | null> => {
+    await apiDelay(400);
+    const index = MOCK_FINANCIAL_RECORDS.findIndex(r => r.id === recordId);
+    if (index === -1) return null;
+
+    MOCK_FINANCIAL_RECORDS[index].status = 'paid';
+    MOCK_FINANCIAL_RECORDS[index].paidAt = new Date().toISOString();
+    
+    return JSON.parse(JSON.stringify(MOCK_FINANCIAL_RECORDS[index]));
 }
