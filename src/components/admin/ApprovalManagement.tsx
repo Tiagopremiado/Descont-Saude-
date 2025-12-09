@@ -33,13 +33,101 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
         }
     };
     
+    const handleWhatsAppContact = (phone: string, message: string) => {
+        const url = `https://wa.me/55${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
     const statusMap: Record<UpdateApprovalRequest['status'], { label: string; bg: string; text: string; }> = {
         pending: { label: 'Pendente', bg: 'bg-yellow-100', text: 'text-yellow-800' },
         approved: { label: 'Aprovado', bg: 'bg-green-100', text: 'text-green-800' },
         rejected: { label: 'Rejeitado', bg: 'bg-red-100', text: 'text-red-800' },
     };
 
-    const hasNoChanges = (req: UpdateApprovalRequest) => Object.keys(req.updates).length === 0 && req.requestType !== 'cancellation';
+    const hasNoChanges = (req: UpdateApprovalRequest) => 
+        Object.keys(req.updates).length === 0 && 
+        req.requestType === 'update'; // Only for standard updates
+
+    const renderRequestContent = (req: UpdateApprovalRequest) => {
+        switch (req.requestType) {
+            case 'cancellation':
+                return (
+                    <div className="p-4 bg-white border border-red-200 rounded-md">
+                        <p className="font-bold text-red-800 mb-1">Motivo informado pelo entregador:</p>
+                        <p className="text-gray-800 italic">"{req.cancellationReason || 'Não especificado'}"</p>
+                        <p className="text-xs text-gray-500 mt-3">Atenção: Ao aprovar, o cliente será marcado como INATIVO.</p>
+                    </div>
+                );
+            case 'new_dependent':
+                return (
+                    <div className="p-4 bg-white border border-indigo-200 rounded-md">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="font-bold text-indigo-800 mb-2">Solicitação de Novo Dependente</p>
+                                <ul className="text-sm space-y-1 text-gray-700">
+                                    <li><strong>Nome:</strong> {req.newDependentData?.name}</li>
+                                    <li><strong>CPF:</strong> {req.newDependentData?.cpf}</li>
+                                    <li><strong>Nasc:</strong> {req.newDependentData?.birthDate ? new Date(req.newDependentData.birthDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</li>
+                                    <li><strong>Parentesco:</strong> {req.newDependentData?.relationship}</li>
+                                </ul>
+                            </div>
+                            <button 
+                                onClick={() => handleWhatsAppContact(req.currentData.whatsapp || req.currentData.phone, `Olá, recebi sua solicitação para adicionar o dependente ${req.newDependentData?.name}.`)}
+                                className="bg-green-500 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-green-600 flex items-center gap-1"
+                            >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73z"/></svg>
+                                Negociar no Zap
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-3">Ao aprovar, o dependente será adicionado como 'Pendente' para que você possa ativar após o pagamento.</p>
+                    </div>
+                );
+            case 'card_request':
+                return (
+                    <div className="p-4 bg-white border border-orange-200 rounded-md">
+                        <p className="font-bold text-orange-800 mb-1">Solicitação de Cartão Físico</p>
+                        <p className="text-gray-800">Para: <strong>{req.cardRequestData?.personName}</strong> ({req.cardRequestData?.role})</p>
+                        <p className="text-xs text-gray-500 mt-3">Ao aprovar, o status de entrega do cliente será atualizado para "Entregar Cartão".</p>
+                    </div>
+                );
+            case 'update':
+            default:
+                if (hasNoChanges(req)) {
+                    return (
+                        <div className="text-center p-4 bg-blue-50 text-blue-800 rounded-md">
+                            <p className="font-semibold">Nenhuma alteração foi enviada.</p>
+                            <p className="text-sm">O entregador confirmou que os dados atuais do cliente estão corretos.</p>
+                        </div>
+                    );
+                }
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                            <h4 className="font-semibold text-gray-700 mb-2 pb-1 border-b">Dados Antigos</h4>
+                            <dl className="text-sm space-y-2">
+                                {Object.keys(req.updates).map(key => (
+                                    <div key={key}>
+                                        <dt className="font-medium text-gray-500 capitalize">{key}</dt>
+                                        <dd className="text-gray-800">{req.currentData[key as keyof typeof req.currentData] || '-'}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </div>
+                         <div>
+                            <h4 className="font-semibold text-green-700 mb-2 pb-1 border-b border-green-200">Dados Novos</h4>
+                            <dl className="text-sm space-y-2">
+                                 {Object.keys(req.updates).map(key => (
+                                    <div key={key}>
+                                        <dt className="font-medium text-gray-500 capitalize">{key}</dt>
+                                        <dd className="font-bold text-green-800">{req.updates[key as keyof typeof req.updates] || '-'}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </div>
+                    </div>
+                );
+        }
+    };
 
     return (
         <Card title="Aprovações de Atualização Cadastral">
@@ -67,7 +155,17 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                                         <h3 className="font-bold text-lg text-ds-vinho">{req.clientName}</h3>
                                         {req.requestType === 'cancellation' && (
                                             <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-600 text-white animate-pulse">
-                                                SOLICITAÇÃO DE CANCELAMENTO
+                                                CANCELAMENTO
+                                            </span>
+                                        )}
+                                        {req.requestType === 'new_dependent' && (
+                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-600 text-white">
+                                                NOVO DEPENDENTE
+                                            </span>
+                                        )}
+                                        {req.requestType === 'card_request' && (
+                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-orange-500 text-white">
+                                                CARTÃO
                                             </span>
                                         )}
                                     </div>
@@ -79,43 +177,7 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                             </header>
 
                             <div className="p-4">
-                                {req.requestType === 'cancellation' ? (
-                                    <div className="p-4 bg-white border border-red-200 rounded-md">
-                                        <p className="font-bold text-red-800 mb-1">Motivo informado pelo entregador:</p>
-                                        <p className="text-gray-800 italic">"{req.cancellationReason || 'Não especificado'}"</p>
-                                        <p className="text-xs text-gray-500 mt-3">Atenção: Ao aprovar, o cliente será marcado como INATIVO.</p>
-                                    </div>
-                                ) : hasNoChanges(req) ? (
-                                    <div className="text-center p-4 bg-blue-50 text-blue-800 rounded-md">
-                                        <p className="font-semibold">Nenhuma alteração foi enviada.</p>
-                                        <p className="text-sm">O entregador confirmou que os dados atuais do cliente estão corretos.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                                        <div>
-                                            <h4 className="font-semibold text-gray-700 mb-2 pb-1 border-b">Dados Antigos</h4>
-                                            <dl className="text-sm space-y-2">
-                                                {Object.keys(req.updates).map(key => (
-                                                    <div key={key}>
-                                                        <dt className="font-medium text-gray-500 capitalize">{key}</dt>
-                                                        <dd className="text-gray-800">{req.currentData[key as keyof typeof req.currentData] || '-'}</dd>
-                                                    </div>
-                                                ))}
-                                            </dl>
-                                        </div>
-                                         <div>
-                                            <h4 className="font-semibold text-green-700 mb-2 pb-1 border-b border-green-200">Dados Novos</h4>
-                                            <dl className="text-sm space-y-2">
-                                                 {Object.keys(req.updates).map(key => (
-                                                    <div key={key}>
-                                                        <dt className="font-medium text-gray-500 capitalize">{key}</dt>
-                                                        <dd className="font-bold text-green-800">{req.updates[key as keyof typeof req.updates] || '-'}</dd>
-                                                    </div>
-                                                ))}
-                                            </dl>
-                                        </div>
-                                    </div>
-                                )}
+                                {renderRequestContent(req)}
                             </div>
 
                             {req.status === 'pending' && (
@@ -126,14 +188,14 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                                         disabled={!!actionLoading}
                                         className="bg-gray-500 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600 transition-colors disabled:opacity-50"
                                     >
-                                        Ignorar / Rejeitar
+                                        Rejeitar
                                     </button>
                                      <button
                                         onClick={() => handleAction(req.id, 'approve')}
                                         disabled={!!actionLoading}
                                         className={`${req.requestType === 'cancellation' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-2 px-4 rounded-full transition-colors disabled:opacity-50`}
                                     >
-                                        {req.requestType === 'cancellation' ? 'Confirmar Cancelamento' : 'Aprovar Mudanças'}
+                                        {req.requestType === 'cancellation' ? 'Confirmar Cancelamento' : 'Aprovar Solicitação'}
                                     </button>
                                 </footer>
                             )}

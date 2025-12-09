@@ -106,8 +106,10 @@ export interface UpdateApprovalRequest {
     clientName: string;
     requestedAt: string; // ISO string
     status: 'pending' | 'approved' | 'rejected';
-    requestType: 'update' | 'cancellation'; // New field to distinguish type
-    cancellationReason?: string; // Reason if type is cancellation
+    requestType: 'update' | 'cancellation' | 'new_dependent' | 'card_request'; 
+    cancellationReason?: string;
+    
+    // Data for contact/address updates
     updates: {
         phone?: string;
         whatsapp?: string;
@@ -124,6 +126,20 @@ export interface UpdateApprovalRequest {
         neighborhood: string;
         city: string;
     };
+
+    // Data for new dependent request
+    newDependentData?: {
+        name: string;
+        cpf: string;
+        birthDate: string;
+        relationship: string;
+    };
+
+    // Data for card request
+    cardRequestData?: {
+        personName: string;
+        role: 'Titular' | 'Dependente';
+    };
 }
 
 export interface PlanConfig {
@@ -134,7 +150,6 @@ export interface PlanConfig {
     extraDependentPrice: number;  // Custo por dependente acima de 5
 }
 
-// New Interface for Courier Finance
 export interface CourierFinancialRecord {
     id: string;
     date: string; // ISO string (Day of work)

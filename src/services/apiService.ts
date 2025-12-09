@@ -399,8 +399,8 @@ export const submitUpdateRequest = async (
     clientId: string, 
     currentData: UpdateApprovalRequest['currentData'],
     updates: UpdateApprovalRequest['updates'],
-    requestType: 'update' | 'cancellation' = 'update',
-    cancellationReason?: string
+    requestType: UpdateApprovalRequest['requestType'] = 'update',
+    payload?: string | UpdateApprovalRequest['newDependentData'] | UpdateApprovalRequest['cardRequestData']
 ): Promise<UpdateApprovalRequest> => {
     await apiDelay(700);
     const client = MOCK_CLIENTS.find(c => c.id === clientId);
@@ -413,10 +413,18 @@ export const submitUpdateRequest = async (
         requestedAt: new Date().toISOString(),
         status: 'pending',
         requestType,
-        cancellationReason,
         currentData,
         updates,
     };
+
+    if (requestType === 'cancellation' && typeof payload === 'string') {
+        newRequest.cancellationReason = payload;
+    } else if (requestType === 'new_dependent') {
+        newRequest.newDependentData = payload as UpdateApprovalRequest['newDependentData'];
+    } else if (requestType === 'card_request') {
+        newRequest.cardRequestData = payload as UpdateApprovalRequest['cardRequestData'];
+    }
+
     MOCK_UPDATE_REQUESTS.unshift(newRequest);
     return JSON.parse(JSON.stringify(newRequest));
 };
@@ -446,10 +454,28 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
     }
 
     if (request.requestType === 'cancellation') {
-        // If it's a cancellation approval, set status to inactive
         MOCK_CLIENTS[clientIndex].status = 'inactive';
-        // Add annotation
         MOCK_CLIENTS[clientIndex].annotations += `\n[CANCELAMENTO] Solicitado em ${new Date(request.requestedAt).toLocaleDateString()}. Motivo: ${request.cancellationReason || 'Não informado'}. Aprovado em ${new Date().toLocaleDateString()}.`;
+    } else if (request.requestType === 'new_dependent') {
+        if (request.newDependentData) {
+            MOCK_CLIENTS[clientIndex].dependents.push({
+                id: `dep-${Date.now()}`,
+                name: request.newDependentData.name,
+                cpf: request.newDependentData.cpf,
+                birthDate: request.newDependentData.birthDate,
+                relationship: request.newDependentData.relationship,
+                status: 'pending', // Adm needs to contact client first, so keeps as pending in client list but approve request
+                registrationDate: new Date().toISOString()
+            });
+        }
+    } else if (request.requestType === 'card_request') {
+        if (request.cardRequestData) {
+            MOCK_CLIENTS[clientIndex].deliveryStatus = {
+                pending: true,
+                type: 'card',
+                description: `Entregar Cartão para ${request.cardRequestData.personName} (${request.cardRequestData.role})`
+            };
+        }
     } else {
         // Normal update
         const updatedClientData = { ...MOCK_CLIENTS[clientIndex], ...request.updates };
