@@ -68,7 +68,13 @@ const EntregadorDashboard: React.FC = () => {
     }, []);
 
     const updatedClientIds = useMemo(() => {
-        return new Set(updateRequests.map(req => req.clientId));
+        // Filtrar apenas as solicitações feitas HOJE para o cálculo da rota atual e ganho do dia
+        const today = new Date().toDateString();
+        return new Set(
+            updateRequests
+                .filter(req => new Date(req.requestedAt).toDateString() === today)
+                .map(req => req.clientId)
+        );
     }, [updateRequests]);
 
     // Calcular estatísticas da rota atual
