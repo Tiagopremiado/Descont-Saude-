@@ -73,7 +73,9 @@ const DependentsManager: React.FC<DependentsManagerProps> = ({ client: initialCl
 *Nome:* ${dependente.name}
 *CPF:* ${dependente.cpf}
 *Data de Nasc.:* ${dataNascimento}
-*Parentesco:* ${dependente.relationship}`;
+*Parentesco:* ${dependente.relationship}
+
+*Envie esta mensagem para agilizar a aprovação!*`;
 
       const whatsappNumber = "5553991560861";
       const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
@@ -182,8 +184,24 @@ const DependentsManager: React.FC<DependentsManagerProps> = ({ client: initialCl
       {dependentForConfirmation && (
         <Modal isOpen={isConfirmModalOpen} onClose={() => {}} title="Confirme os Dados do Dependente">
             <div className="space-y-4">
-                <p className="text-gray-700">Por favor, verifique se as informações abaixo estão corretas antes de enviar a solicitação.</p>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2 border border-gray-200 text-gray-800">
+                
+                {/* Alert Box - ADDED HERE */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                        <svg className="h-6 w-6 text-green-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                            <h4 className="text-sm font-bold text-green-800">Para agilizar sua solicitação:</h4>
+                            <p className="text-sm text-green-700 mt-1">
+                                Ao clicar em confirmar, você será redirecionado para o WhatsApp. 
+                                <strong>Envie a mensagem automática</strong> para que nossa equipe aprove o cadastro rapidamente!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2 border border-gray-200 text-gray-800 text-sm">
                     <p><strong>Nome:</strong> {dependentForConfirmation.name}</p>
                     <p><strong>Parentesco:</strong> {dependentForConfirmation.relationship}</p>
                     <p><strong>CPF:</strong> {dependentForConfirmation.cpf}</p>
@@ -193,7 +211,7 @@ const DependentsManager: React.FC<DependentsManagerProps> = ({ client: initialCl
                     <button onClick={() => { setIsConfirmModalOpen(false); setIsFormModalOpen(true); }} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isSaving}>Voltar e Corrigir</button>
                     <button onClick={handleConfirmAndSubmit} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75 disabled:cursor-not-allowed" disabled={isSaving}>
                       {isSaving && <ButtonSpinner />}
-                      {isSaving ? 'Enviando...' : 'Confirmar e Enviar'}
+                      {isSaving ? 'Enviando...' : 'Confirmar e Abrir WhatsApp'}
                     </button>
                 </div>
             </div>
