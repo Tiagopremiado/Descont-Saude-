@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import { useData } from '../context/DataContext';
@@ -67,29 +68,58 @@ const EntregadorDashboard: React.FC = () => {
         fetchRequests();
     }, []);
 
-    const updatedClientIds = useMemo(() => {
-        // Filtrar apenas as solicitações feitas HOJE para o cálculo da rota atual e ganho do dia
-        const today = new Date().toDateString();
-        return new Set(
-            updateRequests
-                .filter(req => new Date(req.requestedAt).toDateString() === today)
-                .map(req => req.clientId)
-        );
+    // 1. Data do último fechamento financeiro para filtrar o que já foi pago/fechado
+    const latestRecordDate = useMemo(() => {
+        if (financialRecords.length === 0) return 0;
+        return Math.max(...financialRecords.map(r => new Date(r.date).getTime()));
+    }, [financialRecords]);
+
+    // 2. Todas as requisições de HOJE (para visualização no mapa e progresso do dia)
+    const todaysRequests = useMemo(() => {
+        const todayStr = new Date().toDateString();
+        return updateRequests.filter(req => new Date(req.requestedAt).toDateString() === todayStr);
     }, [updateRequests]);
 
-    // Calcular estatísticas da rota atual
+    // IDs entregues HOJE (independente se já foi fechado o caixa ou não, para manter o check verde)
+    const clientsDeliveredTodayIds = useMemo(() => {
+        return new Set(todaysRequests.map(req => req.clientId));
+    }, [todaysRequests]);
+
+    // 3. Requisições em ABERTO (ainda não fechadas financeiramente)
+    // São aquelas criadas DEPOIS do último registro financeiro
+    const openSessionRequests = useMemo(() => {
+        return updateRequests.filter(req => new Date(req.requestedAt).getTime() > latestRecordDate);
+    }, [updateRequests, latestRecordDate]);
+
+    const openSessionClientIds = useMemo(() => {
+        return new Set(openSessionRequests.map(req => req.clientId));
+    }, [openSessionRequests]);
+
+    // Estatísticas da rota
     const currentRouteStats = useMemo(() => {
         const activeClients = clients.filter(c => c.status === 'active');
         const total = activeClients.length;
-        const delivered = updatedClientIds.size;
-        const pending = total - delivered;
-        const currentEarnings = delivered * DELIVERY_PRICE;
-        const progress = total > 0 ? (delivered / total) * 100 : 0;
+        
+        // Progresso visual: baseado em TUDO feito hoje
+        const deliveredToday = clientsDeliveredTodayIds.size;
+        const pendingToday = total - deliveredToday;
+        const progress = total > 0 ? (deliveredToday / total) * 100 : 0;
 
-        return { total, delivered, pending, currentEarnings, progress };
-    }, [clients, updatedClientIds]);
+        // Financeiro: baseado APENAS no que está em aberto (sessão atual)
+        const sessionDeliveredCount = openSessionClientIds.size; // Usamos size do Set para evitar duplicatas de ID na contagem
+        const currentEarnings = sessionDeliveredCount * DELIVERY_PRICE;
 
-    // Calcular financeiro histórico
+        return { 
+            total, 
+            deliveredToday, 
+            pendingToday, 
+            currentEarnings, 
+            progress,
+            sessionDeliveredCount 
+        };
+    }, [clients, clientsDeliveredTodayIds, openSessionClientIds]);
+
+    // Calcular financeiro histórico + atual
     const financialStats = useMemo(() => {
         const pendingPayout = financialRecords
             .filter(r => r.status === 'pending')
@@ -112,17 +142,16 @@ const EntregadorDashboard: React.FC = () => {
                 c.address.toLowerCase().includes(searchTerm.toLowerCase())
             )
             .sort((a, b) => {
-                const aUpdated = updatedClientIds.has(a.id);
-                const bUpdated = updatedClientIds.has(b.id);
+                const aUpdated = clientsDeliveredTodayIds.has(a.id);
+                const bUpdated = clientsDeliveredTodayIds.has(b.id);
                 if (aUpdated === bUpdated) {
-                    // Prioritize pending deliveries if status is the same
                     if (a.deliveryStatus?.pending && !b.deliveryStatus?.pending) return -1;
                     if (!a.deliveryStatus?.pending && b.deliveryStatus?.pending) return 1;
                     return a.name.localeCompare(b.name);
                 }
                 return aUpdated ? 1 : -1;
             });
-    }, [clients, searchTerm, updatedClientIds]);
+    }, [clients, searchTerm, clientsDeliveredTodayIds]);
 
     const handleUpdateComplete = () => {
         fetchRequests();
@@ -140,40 +169,39 @@ const EntregadorDashboard: React.FC = () => {
     };
 
     const handleCloseDay = async () => {
-        if (currentRouteStats.delivered === 0) {
-            alert("Nenhuma entrega realizada hoje para fechar.");
+        const countToClose = currentRouteStats.sessionDeliveredCount;
+        const amountToClose = currentRouteStats.currentEarnings;
+
+        if (countToClose === 0) {
+            alert("Nenhuma nova entrega para encerrar neste momento.");
             return;
         }
 
-        if(!window.confirm(`Você tem certeza que deseja encerrar o dia?\n\nEntregas: ${currentRouteStats.delivered}\nValor: R$ ${currentRouteStats.currentEarnings.toFixed(2)}\n\nIsso irá gerar um registro de cobrança para o administrador.`)) {
+        if(!window.confirm(`Confirma o encerramento deste lote de entregas?\n\nNovas Entregas: ${countToClose}\nValor deste lote: R$ ${amountToClose.toFixed(2)}\n\nIsso irá gerar o registro de cobrança e zerar o contador financeiro atual.`)) {
             return;
         }
 
         try {
             // Create financial record
-            await createDailyFinancialRecord(currentRouteStats.delivered, DELIVERY_PRICE);
+            await createDailyFinancialRecord(countToClose, DELIVERY_PRICE);
             
-            // Now generate the JSON report
-            const today = new Date().toDateString();
-            const dailyUpdates = updateRequests.filter(req => new Date(req.requestedAt).toDateString() === today);
-            
-            const dataStr = JSON.stringify(dailyUpdates, null, 2);
+            // Generate report based on OPEN SESSION requests
+            const dataStr = JSON.stringify(openSessionRequests, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
-            const file = new File([blob], `relatorio_entregas_${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
+            const file = new File([blob], `relatorio_entregas_lote_${new Date().toISOString().slice(0, 16).replace(/:/g, '-')}.json`, { type: "application/json" });
 
             // Share logic
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
-                        title: 'Relatório Diário de Entregas',
-                        text: `Dia fechado! ${currentRouteStats.delivered} entregas. Valor a receber: R$ ${currentRouteStats.currentEarnings.toFixed(2)}`,
+                        title: 'Fechamento de Lote - Entregas',
+                        text: `Lote fechado! ${countToClose} entregas. Valor: R$ ${amountToClose.toFixed(2)}`,
                         files: [file]
                     });
                 } catch (error) {
                     console.error("Erro ao compartilhar:", error);
                 }
             } else {
-                // Fallback for Desktop/Browsers without file sharing support
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -183,17 +211,15 @@ const EntregadorDashboard: React.FC = () => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                // WhatsApp Logic
                 const adminPhone = "5553991560861"; 
-                const message = `*Relatório de Entregas - ${new Date().toLocaleDateString('pt-BR')}*\n\n✅ Entregas: ${currentRouteStats.delivered}\n💰 Valor: R$ ${currentRouteStats.currentEarnings.toFixed(2)}\n\n(O arquivo JSON foi baixado no seu dispositivo, por favor anexe-o aqui)`;
+                const message = `*Fechamento de Lote - ${new Date().toLocaleDateString('pt-BR')}*\n\n✅ Entregas neste lote: ${countToClose}\n💰 Valor: R$ ${amountToClose.toFixed(2)}\n\n(Anexe o arquivo baixado)`;
                 const waUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
 
-                if(window.confirm("Arquivo baixado!\n\nDeseja abrir o WhatsApp agora para enviar o relatório ao administrador?")) {
+                if(window.confirm("Arquivo baixado!\n\nDeseja abrir o WhatsApp agora para enviar o relatório?")) {
                     window.open(waUrl, '_blank');
                 }
             }
 
-            // Refresh data to update balance
             fetchRequests();
             setDirty(true);
 
@@ -219,17 +245,17 @@ const EntregadorDashboard: React.FC = () => {
                 const newRouteData = JSON.parse(text);
                 
                 if (Array.isArray(newRouteData) && newRouteData.length > 0 && newRouteData[0].name) {
-                    if(window.confirm("Isso atualizará os endereços dos clientes com o arquivo recebido. Suas visitas de hoje SERÃO MANTIDAS. Deseja continuar?")) {
+                    if(window.confirm("Isso atualizará os endereços dos clientes. Suas visitas de hoje SERÃO MANTIDAS. Deseja continuar?")) {
                         importRouteData(newRouteData); 
                         reloadData();
-                        alert("Rota e endereços atualizados com sucesso! Clientes com entrega pendente foram destacados.");
+                        alert("Rota atualizada com sucesso!");
                     }
                 } else {
-                    throw new Error("Formato de arquivo inválido. Certifique-se que é o arquivo de rota enviado pelo Admin.");
+                    throw new Error("Formato de arquivo inválido.");
                 }
             } catch (error) {
                 console.error("Error parsing route file:", error);
-                alert("Erro ao ler o arquivo. Verifique se o arquivo está correto.");
+                alert("Erro ao ler o arquivo.");
             } finally {
                 if (fileInputRef.current) fileInputRef.current.value = "";
             }
@@ -238,8 +264,12 @@ const EntregadorDashboard: React.FC = () => {
     }
 
     const handleClientClick = (client: Client) => {
-        if (updatedClientIds.has(client.id)) {
+        // If client is in the OPEN session list, allow revert
+        if (openSessionClientIds.has(client.id)) {
             setClientToRevert(client);
+        } else if (clientsDeliveredTodayIds.has(client.id)) {
+            // Already delivered today but likely closed in previous batch
+            alert("Esta entrega já foi contabilizada em um fechamento anterior hoje. Não é possível reverter por aqui.");
         } else {
             setSelectedClient(client);
         }
@@ -256,22 +286,19 @@ const EntregadorDashboard: React.FC = () => {
             setClientToRevert(null);
         } catch (error) {
             console.error("Failed to revert action", error);
-            alert("Erro ao desfazer ação. Tente novamente.");
+            alert("Erro ao desfazer ação.");
         }
     }
     
     const getDeliveryBadge = (status: Client['deliveryStatus']) => {
         if (!status || !status.pending) return null;
-        
         const badges = {
             new_contract: { color: 'bg-purple-100 text-purple-800', label: 'Novo Contrato' },
             carnet: { color: 'bg-blue-100 text-blue-800', label: 'Entregar Carnê' },
             card: { color: 'bg-orange-100 text-orange-800', label: 'Entregar Cartão' },
             other: { color: 'bg-gray-100 text-gray-800', label: 'Entrega Diversa' }
         };
-        
         const style = badges[status.type] || badges.other;
-        
         return (
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${style.color}`}>
                 {style.label}
@@ -293,7 +320,11 @@ const EntregadorDashboard: React.FC = () => {
                             <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500">
                                 <h2 className="text-gray-500 text-sm font-semibold uppercase tracking-wide">Saldo Total a Receber</h2>
                                 <p className="text-3xl font-bold text-green-600">R$ {financialStats.totalReceivable.toFixed(2).replace('.', ',')}</p>
-                                <p className="text-xs text-gray-400 mt-1">Inclui {currentRouteStats.delivered} entregas de hoje</p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    {currentRouteStats.sessionDeliveredCount > 0 
+                                        ? `Inclui R$ ${currentRouteStats.currentEarnings.toFixed(2)} de agora` 
+                                        : 'Sem entregas pendentes de fechamento'}
+                                </p>
                             </div>
                             <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500">
                                 <h2 className="text-gray-500 text-sm font-semibold uppercase tracking-wide">Último Pagamento</h2>
@@ -320,11 +351,11 @@ const EntregadorDashboard: React.FC = () => {
                                 </div>
                                 <div>
                                     <p className="text-green-600 font-semibold">Feito</p>
-                                    <p className="font-bold">{currentRouteStats.delivered}</p>
+                                    <p className="font-bold">{currentRouteStats.deliveredToday}</p>
                                 </div>
                                 <div>
                                     <p className="text-orange-600 font-semibold">Falta</p>
-                                    <p className="font-bold">{currentRouteStats.pending}</p>
+                                    <p className="font-bold">{currentRouteStats.pendingToday}</p>
                                 </div>
                             </div>
                         </div>
@@ -351,7 +382,7 @@ const EntregadorDashboard: React.FC = () => {
                                     className="bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center shadow-sm w-full sm:w-auto text-sm"
                                 >
                                     <MoneyIcon />
-                                    Encerrar Dia e Gerar Cobrança
+                                    Encerrar Lote ({currentRouteStats.sessionDeliveredCount})
                                 </button>
                             </div>
                         </div>
@@ -370,7 +401,7 @@ const EntregadorDashboard: React.FC = () => {
                             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                                 <ul className="divide-y divide-gray-200">
                                     {filteredClients.map(client => (
-                                        <li key={client.id} className={updatedClientIds.has(client.id) ? "bg-gray-50" : ""}>
+                                        <li key={client.id} className={clientsDeliveredTodayIds.has(client.id) ? "bg-gray-50" : ""}>
                                             <div className="flex w-full hover:bg-gray-100 transition-colors relative">
                                                 <button 
                                                     onClick={() => handleClientClick(client)}
@@ -378,16 +409,16 @@ const EntregadorDashboard: React.FC = () => {
                                                 >
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <p className={`font-semibold ${updatedClientIds.has(client.id) ? 'text-green-700 line-through decoration-green-700' : 'text-ds-vinho'}`}>
+                                                            <p className={`font-semibold ${clientsDeliveredTodayIds.has(client.id) ? 'text-green-700 line-through decoration-green-700' : 'text-ds-vinho'}`}>
                                                                 {client.name}
                                                             </p>
-                                                            {!updatedClientIds.has(client.id) && getDeliveryBadge(client.deliveryStatus)}
+                                                            {!clientsDeliveredTodayIds.has(client.id) && getDeliveryBadge(client.deliveryStatus)}
                                                         </div>
                                                         <p className="text-sm text-gray-600">{`${client.address}, ${client.addressNumber} - ${client.neighborhood}`}</p>
                                                         <p className="text-xs text-gray-500">{client.city}</p>
                                                     </div>
                                                     <div className="mt-1">
-                                                        {updatedClientIds.has(client.id) ? (
+                                                        {clientsDeliveredTodayIds.has(client.id) ? (
                                                             <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
                                                                 <CheckCircleIcon />
                                                                 Entregue
@@ -441,7 +472,7 @@ const EntregadorDashboard: React.FC = () => {
                         <div>
                             <p className="text-lg font-bold text-gray-900">Reverter status de {clientToRevert.name}?</p>
                             <p className="text-sm text-gray-500 mt-2">
-                                Isso cancelará a confirmação de entrega ou a solicitação de cancelamento enviada. O cliente voltará para a lista de pendentes.
+                                Esta entrega ainda não foi fechada financeiramente, então você pode desfazer e ela voltará para "Pendente".
                             </p>
                         </div>
                         <div className="flex gap-3 pt-2">
