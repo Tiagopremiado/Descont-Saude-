@@ -149,32 +149,50 @@ const AdminDashboard: React.FC = () => {
     };
 
     // New Function: Send Route to Entregador
-    const handleSendRoute = () => {
-        // We only send clients list for the route update
-        const routeData = clients;
-        
-        const jsonString = JSON.stringify(routeData, null, 2);
-        const blob = new Blob([jsonString], { type: "application/json" });
-        const file = new File([blob], `rota_atualizada_${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
+    const handleSendRoute = async () => {
+        try {
+            // We only send clients list for the route update
+            const routeData = clients;
+            
+            const jsonString = JSON.stringify(routeData, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const fileName = `rota_atualizada_${new Date().toISOString().slice(0, 10)}.json`;
+            const file = new File([blob], fileName, { type: "application/json" });
 
-        // Tenta compartilhar nativamente (WhatsApp/Email)
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            navigator.share({
-                title: 'Rota Atualizada',
-                text: 'Segue o arquivo com a rota e endereços atualizados para o sistema do entregador.',
-                files: [file]
-            }).catch(err => console.error("Error sharing route:", err));
-        } else {
+            // Tenta compartilhar nativamente (WhatsApp/Email) - Prioriza Mobile
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Rota Atualizada',
+                        text: 'Segue o arquivo com a rota e endereços atualizados para o sistema do entregador.',
+                        files: [file]
+                    });
+                    return; // Se compartilhou, encerra
+                } catch (err) {
+                    // Se o usuário cancelar ou der erro, cai no fallback abaixo (exceto AbortError que é cancelamento intencional)
+                     if ((err as Error).name === 'AbortError') return;
+                     console.error("Error sharing route, falling back to download:", err);
+                }
+            } 
+
             // Fallback: Baixa o arquivo para envio manual
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = file.name;
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            alert("Arquivo da rota baixado! Envie para o entregador via WhatsApp para que ele atualize o sistema.");
+            
+            // Pequeno delay para garantir que o download iniciou antes do alert
+            setTimeout(() => {
+                 alert("Arquivo da rota baixado! Envie para o entregador via WhatsApp para que ele atualize o sistema.");
+            }, 500);
+
+        } catch (error) {
+            console.error("Error generating route file:", error);
+            alert("Erro ao gerar o arquivo de rota.");
         }
     };
 
