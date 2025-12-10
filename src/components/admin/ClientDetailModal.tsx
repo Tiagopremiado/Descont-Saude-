@@ -6,6 +6,7 @@ import Modal from '../common/Modal';
 import Spinner from '../common/Spinner';
 import AddDependentModal from './AddDependentModal';
 import ClientBillingsTab from './ClientBillingsTab';
+import ClientHistoryTab from './ClientHistoryTab';
 
 
 interface ClientDetailModalProps {
@@ -22,6 +23,12 @@ const ButtonSpinner = () => (
     </svg>
 );
 
+const WhatsAppIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241z"/>
+    </svg>
+);
+
 
 const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, client, onShowGenerationResult }) => {
   const [formData, setFormData] = useState<Client>(client);
@@ -30,7 +37,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isAddDependentModalOpen, setIsAddDependentModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'data' | 'billings'>('data');
+  const [activeTab, setActiveTab] = useState<'data' | 'billings' | 'history'>('data');
 
 
   useEffect(() => {
@@ -117,6 +124,17 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
       }
   }
 
+  const handleOpenWhatsApp = () => {
+      const number = formData.whatsapp || formData.phone;
+      const cleanNumber = number.replace(/\D/g, '');
+      if (cleanNumber) {
+          const url = `https://wa.me/55${cleanNumber}`;
+          window.open(url, '_blank');
+      } else {
+          alert('Insira um número válido para chamar no WhatsApp.');
+      }
+  };
+
   const getDependentStatusChip = (status: Dependent['status']) => {
     const styles = {
         active: 'bg-green-100 text-green-800',
@@ -153,7 +171,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
   const KeyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L4 19.743V16a1 1 0 00-2 0v4a1 1 0 001 1h4a1 1 0 000-2H5.257l5.9-5.9A6 6 0 1118 8zm-6-4a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd" /></svg>;
   const TruckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" /></svg>;
 
-  const TabButton: React.FC<{tab: 'data' | 'billings', label: string}> = ({ tab, label }) => (
+  const TabButton: React.FC<{tab: 'data' | 'billings' | 'history', label: string}> = ({ tab, label }) => (
     <button
        type="button"
        onClick={() => setActiveTab(tab)}
@@ -171,9 +189,10 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
     <>
     <Modal isOpen={isOpen} onClose={onClose} title={`Detalhes do Cliente: ${client.name}`} size="3xl">
        <div className="border-b border-gray-200 -mt-6 -mx-6 mb-4">
-            <nav className="-mb-px flex space-x-4 px-6">
+            <nav className="-mb-px flex space-x-4 px-6 overflow-x-auto">
                 <TabButton tab="data" label="Dados do Cliente" />
                 <TabButton tab="billings" label="Mensalidades" />
+                <TabButton tab="history" label="Histórico" />
             </nav>
         </div>
       
@@ -220,7 +239,17 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                             </div>
                             <div>
                                 <label htmlFor="edit-whatsapp" className={labelClass}>WhatsApp</label>
-                                <input type="tel" name="whatsapp" id="edit-whatsapp" value={formData.whatsapp || ''} onChange={handleChange} className={inputClass} />
+                                <div className="relative">
+                                    <input type="tel" name="whatsapp" id="edit-whatsapp" value={formData.whatsapp || ''} onChange={handleChange} className={`${inputClass} pr-10`} />
+                                    <button 
+                                        type="button" 
+                                        onClick={handleOpenWhatsApp}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-green-600 hover:text-green-800 transition-colors p-1"
+                                        title="Chamar no WhatsApp"
+                                    >
+                                        <WhatsAppIcon />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -370,6 +399,9 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
             )}
             {activeTab === 'billings' && (
                 <ClientBillingsTab client={client} />
+            )}
+            {activeTab === 'history' && (
+                <ClientHistoryTab client={formData} />
             )}
         </div>
 

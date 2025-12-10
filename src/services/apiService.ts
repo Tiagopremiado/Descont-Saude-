@@ -1,9 +1,32 @@
 
 import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders, MOCK_UPDATE_REQUESTS, MOCK_PLAN_CONFIG, MOCK_FINANCIAL_RECORDS } from './mockData';
-import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest, PlanConfig, CourierFinancialRecord } from '../types';
+import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest, PlanConfig, CourierFinancialRecord, ActivityLog } from '../types';
 
 // Simulate API delay
 const apiDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+// --- Helper for Logging ---
+const createLog = (action: ActivityLog['action'], description: string, details?: string[]): ActivityLog => ({
+    id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    action,
+    description,
+    details,
+    timestamp: new Date().toISOString(),
+    author: 'Administrador' // Hardcoded for now, could be dynamic based on auth context in a real app
+});
+
+const detectChanges = (oldData: any, newData: any): string[] => {
+    const changes: string[] = [];
+    const fieldsToIgnore = ['id', 'contractNumber', 'dependents', 'logs', 'deliveryStatus'];
+    
+    for (const key in newData) {
+        if (fieldsToIgnore.includes(key)) continue;
+        if (JSON.stringify(oldData[key]) !== JSON.stringify(newData[key])) {
+            changes.push(`${key}: "${oldData[key] || ''}" → "${newData[key] || ''}"`);
+        }
+    }
+    return changes;
+};
 
 // ... (existing client, dependent, payment, doctor, reminder services - KEEP THEM) ...
 // --- Client Services ---
@@ -38,6 +61,7 @@ export const addClient = async (clientData: Omit<Client, 'id' | 'contractNumber'
             status: 'active',
             registrationDate: new Date().toISOString(),
         })),
+        logs: [createLog('create', 'Cliente cadastrado no sistema')]
     };
     MOCK_CLIENTS.push(newClient);
     return JSON.parse(JSON.stringify(newClient));
@@ -49,7 +73,27 @@ export const updateClient = async (id: string, updatedData: Client): Promise<Cli
     if (clientIndex === -1) {
         throw new Error('Client not found');
     }
-    MOCK_CLIENTS[clientIndex] = JSON.parse(JSON.stringify(updatedData));
+    
+    const oldClient = MOCK_CLIENTS[clientIndex];
+    const changes = detectChanges(oldClient, updatedData);
+    
+    let newLogs = oldClient.logs || [];
+    if (changes.length > 0) {
+        newLogs.unshift(createLog('update', 'Dados cadastrais atualizados', changes));
+    }
+    
+    // Check for status change specifically
+    if (oldClient.status !== updatedData.status) {
+        const actionType = 'status_change';
+        const description = `Status alterado de ${oldClient.status} para ${updatedData.status}`;
+        newLogs.unshift(createLog(actionType, description));
+    }
+
+    MOCK_CLIENTS[clientIndex] = {
+        ...JSON.parse(JSON.stringify(updatedData)),
+        logs: newLogs
+    };
+    
     return MOCK_CLIENTS[clientIndex];
 };
 
@@ -65,13 +109,19 @@ export const requestDelivery = async (clientId: string, type: Client['deliverySt
         description
     };
     
+    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_request', `Solicitação de entrega: ${description}`));
+    
     return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
 export const resetClientPassword = async (clientId: string): Promise<{ success: true }> => {
     await apiDelay(500);
-    // In a real app, this would trigger a password reset flow (e.g., send an email).
-    // Here, we just log it, as the mock auth uses a static password.
+    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
+    if (clientIndex !== -1) {
+        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('password_reset', 'Senha resetada manualmente pelo admin'));
+    }
     console.log(`Password for client ${clientId} has been reset.`);
     return { success: true };
 };
@@ -92,6 +142,8 @@ export const requestAddDependent = async (clientId: string, dependentData: Omit<
     };
     
     MOCK_CLIENTS[clientIndex].dependents.push(newDependent);
+    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Solicitação de inclusão de dependente: ${newDependent.name}`));
 
     // Create a reminder for the admin
     await addReminder({
@@ -116,6 +168,9 @@ export const addDependent = async (clientId: string, dependentData: Omit<Depende
     };
     
     MOCK_CLIENTS[clientIndex].dependents.push(newDependent);
+    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente adicionado manualmente: ${newDependent.name} (${newDependent.status})`));
+
     return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
@@ -126,12 +181,17 @@ const updateDependentStatus = (clientId: string, dependentId: string, status: De
     const dependentIndex = MOCK_CLIENTS[clientIndex].dependents.findIndex(d => d.id === dependentId);
     if (dependentIndex === -1) return null;
 
+    const depName = MOCK_CLIENTS[clientIndex].dependents[dependentIndex].name;
     MOCK_CLIENTS[clientIndex].dependents[dependentIndex].status = status;
+    
     if (status === 'inactive') {
         MOCK_CLIENTS[clientIndex].dependents[dependentIndex].inactivationDate = new Date().toISOString();
     } else {
          delete MOCK_CLIENTS[clientIndex].dependents[dependentIndex].inactivationDate;
     }
+
+    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente ${depName} alterado para ${status}`));
 
     return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 }
@@ -146,8 +206,14 @@ export const rejectDependent = async (clientId: string, dependentId: string): Pr
     const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
     if (clientIndex === -1) return null;
 
+    const dependent = MOCK_CLIENTS[clientIndex].dependents.find(d => d.id === dependentId);
+    const depName = dependent ? dependent.name : 'Unknown';
+
     MOCK_CLIENTS[clientIndex].dependents = MOCK_CLIENTS[clientIndex].dependents.filter(d => d.id !== dependentId);
     
+    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Solicitação de dependente REJEITADA: ${depName}`));
+
     return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
@@ -283,6 +349,9 @@ export const generateAnnualCarnet = async (clientId: string, year: number): Prom
         type: 'carnet',
         description: `Entregar Carnê ${year}`
     };
+    
+    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_request', `Carnê ${year} gerado e marcado para entrega.`));
 
     return JSON.parse(JSON.stringify(newPayments));
 };
@@ -456,6 +525,8 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
     if (request.requestType === 'cancellation') {
         MOCK_CLIENTS[clientIndex].status = 'inactive';
         MOCK_CLIENTS[clientIndex].annotations += `\n[CANCELAMENTO] Solicitado em ${new Date(request.requestedAt).toLocaleDateString()}. Motivo: ${request.cancellationReason || 'Não informado'}. Aprovado em ${new Date().toLocaleDateString()}.`;
+        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('status_change', 'Cliente CANCELADO (Solicitação do Entregador aprovada)'));
     } else if (request.requestType === 'new_dependent') {
         if (request.newDependentData) {
             MOCK_CLIENTS[clientIndex].dependents.push({
@@ -467,6 +538,8 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
                 status: 'pending', // Adm needs to contact client first, so keeps as pending in client list but approve request
                 registrationDate: new Date().toISOString()
             });
+            MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+            MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente solicitado pelo entregador adicionado (Pendente): ${request.newDependentData.name}`));
         }
     } else if (request.requestType === 'card_request') {
         if (request.cardRequestData) {
@@ -475,11 +548,18 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
                 type: 'card',
                 description: `Entregar Cartão para ${request.cardRequestData.personName} (${request.cardRequestData.role})`
             };
+            MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+            MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_request', `Solicitação de cartão aprovada para ${request.cardRequestData.personName}`));
         }
     } else {
         // Normal update
+        const changes = detectChanges(MOCK_CLIENTS[clientIndex], request.updates);
         const updatedClientData = { ...MOCK_CLIENTS[clientIndex], ...request.updates };
         MOCK_CLIENTS[clientIndex] = updatedClientData;
+        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+        if(changes.length > 0) {
+             MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', 'Dados atualizados via solicitação do entregador', changes));
+        }
     }
     
     MOCK_UPDATE_REQUESTS[requestIndex].status = 'approved';

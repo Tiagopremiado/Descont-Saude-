@@ -43,6 +43,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onClie
     salesRep: 'TIAGO SILVA',
     status: 'active',
     annotations: '',
+    logs: [],
   };
 
   const [formData, setFormData] = useState(initialFormState);

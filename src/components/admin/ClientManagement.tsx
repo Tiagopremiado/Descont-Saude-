@@ -17,6 +17,12 @@ interface ClientManagementProps {
 
 const CLIENTS_PER_PAGE = 50;
 
+const WhatsAppIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241z"/>
+    </svg>
+);
+
 const ClientManagement: React.FC<ClientManagementProps> = ({ 
     initialClients, 
     onClientsChange: reloadClients,
@@ -30,10 +36,11 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+    const [showInactive, setShowInactive] = useState(false); // Default to false to hide inactive clients
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterPending]);
+    }, [searchTerm, filterPending, showInactive]);
 
     const clientCounts = useMemo(() => {
         return initialClients.reduce((acc, client) => {
@@ -48,9 +55,16 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
     
     const fullyFilteredClients = useMemo(() => {
         let clients = initialClients;
+
+        // Filter out inactive clients unless showInactive is true
+        if (!showInactive) {
+            clients = clients.filter(c => c.status !== 'inactive');
+        }
+
         if (filterPending) {
             clients = clients.filter(c => c.status === 'pending' || c.dependents.some(d => d.status === 'pending'));
         }
+        
         if (searchTerm) {
             clients = clients.filter(c => 
                 c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -58,7 +72,7 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
             );
         }
         return clients;
-    }, [initialClients, searchTerm, filterPending]);
+    }, [initialClients, searchTerm, filterPending, showInactive]);
 
     const totalPages = Math.ceil(fullyFilteredClients.length / CLIENTS_PER_PAGE);
 
@@ -81,6 +95,17 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
         reloadClients();
         setDirty(true);
     }
+
+    const handleWhatsAppClick = (client: Client) => {
+        const number = client.whatsapp || client.phone;
+        const cleanNumber = number.replace(/\D/g, '');
+        if (cleanNumber) {
+            const url = `https://wa.me/55${cleanNumber}`;
+            window.open(url, '_blank');
+        } else {
+            alert('Número de telefone inválido ou não cadastrado.');
+        }
+    };
 
     const getStatusChip = (status: Client['status']) => {
         const styles = {
@@ -122,7 +147,16 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full sm:w-1/3 p-2 border border-gray-300 rounded-lg focus:ring-ds-dourado focus:border-ds-dourado"
                     />
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-4 justify-end">
+                         <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={showInactive}
+                                onChange={(e) => setShowInactive(e.target.checked)}
+                                className="h-4 w-4 rounded text-ds-vinho focus:ring-ds-dourado"
+                            />
+                            <span className="text-sm text-gray-700">Mostrar Inativos</span>
+                        </label>
                          <label className="flex items-center space-x-2 cursor-pointer">
                             <input
                                 type="checkbox"
@@ -142,8 +176,8 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
                 </div>
 
                 {isLoading ? <Spinner /> : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
+                    <div className="overflow-x-auto pb-4">
+                        <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-y-1">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
@@ -153,14 +187,19 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-white">
                                 {paginatedClients.map((client) => (
-                                    <tr key={client.id}>
+                                    <tr 
+                                        key={client.id}
+                                        className="group transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.15)] hover:bg-white hover:scale-[1.01] hover:z-20 relative border-l-4 border-transparent hover:border-ds-vinho rounded-md"
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
-                                                <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                                                <div className="text-sm font-medium text-gray-900 group-hover:text-ds-vinho group-hover:font-bold transition-colors">
+                                                    {client.name}
+                                                </div>
                                                 {hasPendingDependent(client) && (
-                                                    <span title="Dependente pendente" className="ml-2 w-3 h-3 bg-yellow-400 rounded-full"></span>
+                                                    <span title="Dependente pendente" className="ml-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></span>
                                                 )}
                                             </div>
                                         </td>
@@ -168,9 +207,18 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.phone}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">{getStatusChip(client.status)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button onClick={() => setSelectedClient(client)} className="text-ds-vinho hover:text-ds-dourado">
-                                                Ver / Editar
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <button 
+                                                    onClick={() => handleWhatsAppClick(client)} 
+                                                    className="text-green-600 hover:text-green-800 transition-colors transform hover:scale-110"
+                                                    title="Chamar no WhatsApp"
+                                                >
+                                                    <WhatsAppIcon />
+                                                </button>
+                                                <button onClick={() => setSelectedClient(client)} className="text-ds-vinho hover:text-ds-dourado font-semibold">
+                                                    Ver / Editar
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

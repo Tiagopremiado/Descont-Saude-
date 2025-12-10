@@ -1,6 +1,15 @@
 
 // types.ts
 
+export interface ActivityLog {
+  id: string;
+  action: 'create' | 'update' | 'status_change' | 'dependent_action' | 'password_reset' | 'delivery_request';
+  description: string;
+  details?: string[]; // Array of specific changes (e.g. "Name: Old -> New")
+  timestamp: string; // ISO String
+  author: string; // "Admin", "Sistema", or specific user name
+}
+
 export interface User {
   id: string;
   name: string;
@@ -50,6 +59,7 @@ export interface Client {
       type: 'new_contract' | 'carnet' | 'card' | 'other';
       description?: string;
   };
+  logs: ActivityLog[]; // New field for history
 }
 
 export interface Payment {
