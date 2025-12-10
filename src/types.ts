@@ -53,13 +53,13 @@ export interface Client {
   salesRep: string;
   status: 'active' | 'pending' | 'inactive';
   dependents: Dependent[];
-  annotations: string;
+  annotations?: string;
   deliveryStatus?: {
       pending: boolean;
       type: 'new_contract' | 'carnet' | 'card' | 'other';
       description?: string;
   };
-  logs: ActivityLog[]; // New field for history
+  logs?: ActivityLog[]; // New field for history
 }
 
 export interface Payment {
