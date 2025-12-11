@@ -24,6 +24,8 @@ const UserPlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-
 const CardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>;
 const ClipboardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>;
 const SignatureIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>;
+const MaximizeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>;
+const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>;
 
 const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, client, onUpdateComplete }) => {
     const [formData, setFormData] = useState({
@@ -46,9 +48,11 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
     const [dataConfirmed, setDataConfirmed] = useState(false);
     const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
 
-    // Canvas refs
+    // Canvas refs and Signature Fullscreen state
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fullscreenCanvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [isSignatureFullscreen, setIsSignatureFullscreen] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -68,7 +72,7 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
 
     // Signature Pad Logic
     const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-        const canvas = canvasRef.current;
+        const canvas = isSignatureFullscreen ? fullscreenCanvasRef.current : canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -81,7 +85,7 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
 
     const draw = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDrawing) return;
-        const canvas = canvasRef.current;
+        const canvas = isSignatureFullscreen ? fullscreenCanvasRef.current : canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -94,20 +98,22 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
     const stopDrawing = () => {
         if (!isDrawing) return;
         setIsDrawing(false);
-        const canvas = canvasRef.current;
-        if (canvas) {
+        const canvas = isSignatureFullscreen ? fullscreenCanvasRef.current : canvasRef.current;
+        if (canvas && !isSignatureFullscreen) {
             setSignature(canvas.toDataURL());
         }
     };
 
     const clearSignature = () => {
-        const canvas = canvasRef.current;
+        const canvas = isSignatureFullscreen ? fullscreenCanvasRef.current : canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (ctx) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        setSignature(null);
+        if (!isSignatureFullscreen) {
+            setSignature(null);
+        }
     };
 
     const getCoordinates = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
@@ -126,18 +132,45 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
         };
     };
 
-    // Initialize Canvas settings
+    // Initialize Canvas settings (Stroke Style)
     useEffect(() => {
-        if (canvasRef.current) {
-            const canvas = canvasRef.current;
+        const activeRef = isSignatureFullscreen ? fullscreenCanvasRef : canvasRef;
+        if (activeRef.current) {
+            const canvas = activeRef.current;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.lineWidth = 2;
+                ctx.lineWidth = isSignatureFullscreen ? 3 : 2;
                 ctx.lineCap = 'round';
                 ctx.strokeStyle = '#000000';
             }
         }
-    }, [actionMode]);
+    }, [actionMode, isSignatureFullscreen]);
+
+    // Resize fullscreen canvas on open
+    useEffect(() => {
+        if (isSignatureFullscreen && fullscreenCanvasRef.current) {
+            const canvas = fullscreenCanvasRef.current;
+            const container = canvas.parentElement;
+            if (container) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                // Re-apply styles after resize
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.strokeStyle = '#000000';
+                }
+            }
+        }
+    }, [isSignatureFullscreen]);
+
+    const handleSaveFullscreenSignature = () => {
+        if (fullscreenCanvasRef.current) {
+            setSignature(fullscreenCanvasRef.current.toDataURL());
+        }
+        setIsSignatureFullscreen(false);
+    }
 
 
     const handleSubmitUpdate = async () => {
@@ -311,22 +344,34 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
                                     <SignatureIcon />
                                     <label className="text-sm font-bold text-ds-vinho">Assinatura do Recebedor</label>
                                 </div>
-                                <button type="button" onClick={clearSignature} className="text-xs text-red-600 underline">Limpar</button>
+                                <div className="flex gap-4 text-xs">
+                                    <button type="button" onClick={() => setIsSignatureFullscreen(true)} className="text-ds-vinho font-bold flex items-center hover:underline">
+                                        <MaximizeIcon /> Maximizar
+                                    </button>
+                                    <button type="button" onClick={clearSignature} className="text-red-600 underline">Limpar</button>
+                                </div>
                             </div>
-                            <div className="bg-white border border-gray-300 rounded touch-none">
-                                <canvas
-                                    ref={canvasRef}
-                                    width={320}
-                                    height={120}
-                                    className="w-full h-32 cursor-crosshair"
-                                    onMouseDown={startDrawing}
-                                    onMouseMove={draw}
-                                    onMouseUp={stopDrawing}
-                                    onMouseLeave={stopDrawing}
-                                    onTouchStart={startDrawing}
-                                    onTouchMove={draw}
-                                    onTouchEnd={stopDrawing}
-                                />
+                            
+                            {/* Preview Canvas (Always shows current signature logic) */}
+                            <div className="bg-white border border-gray-300 rounded touch-none relative">
+                                {signature ? (
+                                    <img src={signature} alt="Assinatura" className="w-full h-32 object-contain" />
+                                ) : (
+                                    <canvas
+                                        ref={canvasRef}
+                                        width={320}
+                                        height={120}
+                                        className="w-full h-32 cursor-crosshair"
+                                        onMouseDown={startDrawing}
+                                        onMouseMove={draw}
+                                        onMouseUp={stopDrawing}
+                                        onMouseLeave={stopDrawing}
+                                        onTouchStart={startDrawing}
+                                        onTouchMove={draw}
+                                        onTouchEnd={stopDrawing}
+                                    />
+                                )}
+                                {!signature && !isDrawing && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-gray-300 text-sm">Assine aqui</div>}
                             </div>
                              {!signature && <p className="text-xs text-red-500 mt-1">* Assinatura recomendada para confirmar entrega</p>}
                         </div>
@@ -503,6 +548,50 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
                 )}
 
             </div>
+
+            {/* FULLSCREEN SIGNATURE OVERLAY */}
+            {isSignatureFullscreen && (
+                <div className="fixed inset-0 z-[60] bg-white flex flex-col">
+                    <div className="p-4 bg-ds-vinho text-white flex justify-between items-center shadow-md">
+                        <h3 className="text-xl font-bold">Coletar Assinatura</h3>
+                        <button onClick={() => setIsSignatureFullscreen(false)} className="text-white hover:text-gray-200">
+                            <CloseIcon />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-grow relative bg-gray-100 p-2 overflow-hidden flex items-center justify-center">
+                        <div className="w-full h-full bg-white shadow-lg border border-gray-300 rounded touch-none relative">
+                            <canvas
+                                ref={fullscreenCanvasRef}
+                                className="w-full h-full cursor-crosshair block"
+                                onMouseDown={startDrawing}
+                                onMouseMove={draw}
+                                onMouseUp={stopDrawing}
+                                onMouseLeave={stopDrawing}
+                                onTouchStart={startDrawing}
+                                onTouchMove={draw}
+                                onTouchEnd={stopDrawing}
+                            />
+                            {!isDrawing && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-gray-300 text-2xl font-bold opacity-30 select-none">ASSINE NA TELA</div>}
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-white border-t flex gap-4">
+                        <button 
+                            onClick={clearSignature} 
+                            className="flex-1 bg-gray-200 text-gray-800 font-bold py-4 rounded-lg hover:bg-gray-300 text-lg"
+                        >
+                            Limpar
+                        </button>
+                        <button 
+                            onClick={handleSaveFullscreenSignature} 
+                            className="flex-[2] bg-green-600 text-white font-bold py-4 rounded-lg hover:bg-green-700 text-lg shadow-md"
+                        >
+                            Confirmar Assinatura
+                        </button>
+                    </div>
+                </div>
+            )}
         </Modal>
     );
 };
