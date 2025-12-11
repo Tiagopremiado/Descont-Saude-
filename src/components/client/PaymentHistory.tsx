@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Client, Payment } from '../../types';
 import { getPaymentsByClientId } from '../../services/apiService';
@@ -9,9 +10,7 @@ interface PaymentHistoryProps {
   client: Client;
 }
 
-// --- Funções para Geração do PIX ---
-
-// Calcula o CRC16 para o código PIX
+// --- Funções para Geração do PIX (Mantidas) ---
 const crc16 = (payload: string): string => {
     let crc = 0xFFFF;
     const polynomial = 0x1021;
@@ -28,11 +27,10 @@ const crc16 = (payload: string): string => {
     return crc.toString(16).toUpperCase().padStart(4, '0');
 };
 
-// Gera o código completo (BRCode) para o PIX Copia e Cola e QR Code
 const generatePixCode = (amount: number): string => {
     const pixKey = "55ba0287-58ef-4822-9a03-b775ba432555";
-    const merchantName = "DESCONT SAUDE"; // Nome que aparecerá para o cliente
-    const merchantCity = "PEDRO OSORIO"; // Cidade do recebedor
+    const merchantName = "DESCONT SAUDE"; 
+    const merchantCity = "PEDRO OSORIO"; 
 
     const field = (id: string, value: string) => {
         const len = String(value.length).padStart(2, '0');
@@ -40,22 +38,22 @@ const generatePixCode = (amount: number): string => {
     };
 
     const merchantAccountInfo = 
-        field('00', 'br.gov.bcb.pix') + // GUI Padrão
-        field('01', pixKey); // Chave PIX
+        field('00', 'br.gov.bcb.pix') + 
+        field('01', pixKey); 
 
     const payload = [
-        field('00', '01'), // Payload Format Indicator
+        field('00', '01'), 
         field('26', merchantAccountInfo),
-        field('52', '0000'), // Merchant Category Code (não especificado)
-        field('53', '986'), // Moeda (BRL)
-        field('54', amount.toFixed(2)), // Valor da transação
-        field('58', 'BR'), // País
-        field('59', merchantName), // Nome do Recebedor
-        field('60', merchantCity), // Cidade do Recebedor
-        field('62', field('05', '***')) // ID da Transação (*** para estático)
+        field('52', '0000'), 
+        field('53', '986'), 
+        field('54', amount.toFixed(2)), 
+        field('58', 'BR'), 
+        field('59', merchantName), 
+        field('60', merchantCity), 
+        field('62', field('05', '***')) 
     ].join('');
     
-    const payloadWithCRC = payload + '6304'; // ID e tamanho do CRC16
+    const payloadWithCRC = payload + '6304'; 
     const crc = crc16(payloadWithCRC);
 
     return payloadWithCRC + crc;
@@ -94,54 +92,74 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ client }) => {
         setIsPixModalOpen(true);
     };
 
-    const getStatusChip = (status: Payment['status']) => {
+    const getStatusInfo = (status: Payment['status']) => {
         const styles = {
-            paid: 'bg-green-100 text-green-800',
-            pending: 'bg-yellow-100 text-yellow-800',
-            overdue: 'bg-red-100 text-red-800'
+            paid: 'bg-green-100 text-green-700 border-green-200',
+            pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+            overdue: 'bg-red-50 text-red-700 border-red-200'
         };
         const text = {
-            paid: 'Pago',
-            pending: 'Pendente',
-            overdue: 'Vencido'
+            paid: 'Paga',
+            pending: 'Aberta',
+            overdue: 'Vencida'
         }
-        return <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${styles[status]}`}>{text[status]}</span>
+        return { style: styles[status], label: text[status] };
     }
 
     return (
         <>
-            <Card title="Meu Histórico de Pagamentos">
-                <div className="flex justify-end mb-4">
+            <Card title="Faturas e Pagamentos">
+                <div className="flex justify-end mb-6">
                     <button 
                         onClick={handleRequestBoleto}
-                        className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors"
+                        className="text-sm font-medium text-ds-vinho hover:underline flex items-center gap-1"
                     >
-                        Solicitar Boleto por WhatsApp
+                        Precisa de ajuda com boleto?
                     </button>
                 </div>
+                
                 {loading ? <Spinner /> : (
-                     <ul className="divide-y divide-gray-200">
-                        {payments.map(payment => (
-                            <li key={payment.id} className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex-grow">
-                                    <p className="text-sm font-medium text-ds-vinho">{payment.month} de {payment.year}</p>
-                                    <p className="text-sm text-gray-500">Vencimento: {new Date(payment.dueDate).toLocaleDateString('pt-BR')}</p>
-                                    <p className="text-lg font-bold">R$ {payment.amount.toFixed(2)}</p>
+                     <div className="space-y-3">
+                        {payments.length === 0 ? <p className="text-center text-gray-500 py-8">Nenhuma fatura encontrada.</p> :
+                        payments.map(payment => {
+                            const status = getStatusInfo(payment.status);
+                            const isPayable = payment.status === 'pending' || payment.status === 'overdue';
+                            
+                            return (
+                                <div key={payment.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-shadow hover:shadow-md ${status.style} bg-opacity-30`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-3 rounded-full ${payment.status === 'paid' ? 'bg-green-100' : 'bg-white'}`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${payment.status === 'paid' ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-800 text-lg">{payment.month} <span className="text-sm font-normal text-gray-500">{payment.year}</span></p>
+                                            <p className="text-xs text-gray-500">Vence em {new Date(payment.dueDate).toLocaleDateString('pt-BR')}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-200">
+                                        <p className="font-bold text-lg text-gray-800">R$ {payment.amount.toFixed(2)}</p>
+                                        
+                                        {isPayable ? (
+                                            <button 
+                                                onClick={() => handlePayWithPix(payment)}
+                                                className="bg-ds-vinho text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center gap-2"
+                                            >
+                                                Pagar
+                                            </button>
+                                        ) : (
+                                            <span className="flex items-center gap-1 text-green-700 font-bold text-sm bg-green-100 px-3 py-1 rounded-full">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                Paga
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-4 mt-2 sm:mt-0">
-                                    {getStatusChip(payment.status)}
-                                    {(payment.status === 'pending' || payment.status === 'overdue') && (
-                                        <button 
-                                            onClick={() => handlePayWithPix(payment)}
-                                            className="bg-cyan-500 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-cyan-600 transition-colors"
-                                        >
-                                            Pagar com PIX
-                                        </button>
-                                    )}
-                                </div>
-                            </li>
-                        ))}
-                     </ul>
+                            );
+                        })}
+                     </div>
                 )}
             </Card>
             <PixPaymentModal
