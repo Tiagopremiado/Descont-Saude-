@@ -105,14 +105,23 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
     };
 
     const clearSignature = () => {
-        const canvas = isSignatureFullscreen ? fullscreenCanvasRef.current : canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        if (!isSignatureFullscreen) {
+        if (isSignatureFullscreen) {
+            const canvas = fullscreenCanvasRef.current;
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+        } else {
             setSignature(null);
+            const canvas = canvasRef.current;
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
         }
     };
 
@@ -144,7 +153,7 @@ const ClientUpdateModal: React.FC<ClientUpdateModalProps> = ({ isOpen, onClose, 
                 ctx.strokeStyle = '#000000';
             }
         }
-    }, [actionMode, isSignatureFullscreen]);
+    }, [actionMode, isSignatureFullscreen, signature]); // Re-run when signature is cleared to ensure context is ready
 
     // Resize fullscreen canvas on open
     useEffect(() => {
