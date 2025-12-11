@@ -275,6 +275,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         <div className="min-h-[40vh] max-h-[60vh] overflow-y-auto pr-2">
             {activeTab === 'data' && (
                 <form id="client-detail-form" onSubmit={handleSave} className="space-y-4">
+                    {/* ... (rest of the form remains same) ... */}
                     {/* Personal Data Section */}
                     <fieldset disabled={isFormSaving || !!dependentActionLoading}>
                     <div>
@@ -584,6 +585,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
             onClose={() => setDependentToEdit(null)}
             dependent={dependentToEdit}
             onSave={handleUpdateDependent}
+            clientId={client.id}
         />
     )}
 

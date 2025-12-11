@@ -59,6 +59,23 @@ const ClientDashboard: React.FC = () => {
         return client; // If titular, return full client object
     }, [client, isDependent, user]);
 
+    // Check if the current user has access (Active Plan AND Active Individual Status)
+    const isUserActive = useMemo(() => {
+        if (!client) return false;
+        
+        // 1. O contrato principal deve estar ativo
+        const isContractActive = client.status === 'active';
+        if (!isContractActive) return false;
+
+        // 2. Se for dependente, o status individual dele deve estar ativo
+        if (isDependent && user?.dependentId) {
+            const dep = client.dependents.find(d => d.id === user.dependentId);
+            return dep?.status === 'active';
+        }
+
+        return true;
+    }, [client, isDependent, user]);
+
     const handleLogoutRequest = () => {
         if (isDirty) {
              if (window.confirm("Você tem alterações não salvas. Deseja sair mesmo assim?")) {
@@ -104,18 +121,10 @@ const ClientDashboard: React.FC = () => {
         const userName = currentUserData ? ('name' in currentUserData ? currentUserData.name : '') : '';
         const firstName = userName.split(' ')[0];
         
-        // Status logic: 
-        // Titular: client.status
-        // Dependent: client.status AND dependent.status
-        let isActive = client?.status === 'active';
-        if (isDependent && currentUserData) {
-            isActive = isActive && (currentUserData as Dependent).status === 'active';
-        }
-
         return (
             <div className="space-y-6 animate-fade-in">
                 {/* Hero Card */}
-                <div className="bg-gradient-to-br from-ds-vinho to-[#4a0415] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+                <div className={`rounded-2xl p-6 text-white shadow-xl relative overflow-hidden transition-colors duration-500 ${isUserActive ? 'bg-gradient-to-br from-ds-vinho to-[#4a0415]' : 'bg-gradient-to-br from-gray-800 to-gray-900'}`}>
                     <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl"></div>
                     <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-ds-dourado opacity-10 rounded-full blur-3xl"></div>
                     
@@ -131,8 +140,8 @@ const ClientDashboard: React.FC = () => {
                                 )}
                                 {!isDependent && <p className="text-white/80 text-sm mt-1">{client?.plan}</p>}
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isActive ? 'bg-green-500/20 border-green-400 text-green-300' : 'bg-red-500/20 border-red-400 text-red-300'}`}>
-                                {isActive ? 'PLANO ATIVO' : 'INATIVO'}
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isUserActive ? 'bg-green-500/20 border-green-400 text-green-300' : 'bg-red-500/20 border-red-400 text-red-300 animate-pulse'}`}>
+                                {isUserActive ? 'PLANO ATIVO' : 'INATIVO'}
                             </span>
                         </div>
 
@@ -167,61 +176,86 @@ const ClientDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Quick Actions Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <QuickAction 
-                        title="Guia Médico" 
-                        subtitle="Encontre especialistas" 
-                        icon={<StethoscopeIcon />} 
-                        colorClass="bg-blue-500"
-                        onClick={() => setActiveTab('doctors')}
-                    />
-                    {!isDependent && (
-                        <>
-                            <QuickAction 
-                                title="Faturas" 
-                                subtitle="2ª via e histórico" 
-                                icon={<PaymentIcon />} 
-                                colorClass="bg-green-500"
-                                onClick={() => setActiveTab('payments')}
-                            />
-                            <QuickAction 
-                                title="Dependentes" 
-                                subtitle="Gerenciar família" 
-                                icon={<UsersIcon />} 
-                                colorClass="bg-purple-500"
-                                onClick={() => setActiveTab('dependents')}
-                            />
-                        </>
-                    )}
-                    {isDependent && (
-                         <QuickAction 
-                            title="Avaliar" 
-                            subtitle="Avalie seu atendimento" 
-                            icon={<StarIcon />} 
-                            colorClass="bg-yellow-500"
-                            onClick={() => setActiveTab('rating')}
+                {/* INACTIVE ALERT BANNER */}
+                {!isUserActive && (
+                    <div className="bg-red-600 rounded-xl p-6 shadow-lg text-white text-center animate-pulse border-2 border-red-400">
+                        <div className="flex justify-center mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-bold mb-2">SEU PLANO ESTÁ INATIVO</h3>
+                        <p className="mb-4 text-sm opacity-90">
+                            Para voltar a utilizar todos os benefícios e visualizar sua carteirinha, entre em contato com o suporte agora mesmo.
+                        </p>
+                        <button 
+                            onClick={() => window.open('https://wa.me/5553991560861?text=Ol%C3%A1%2C%20meu%20plano%20est%C3%A1%20inativo%20e%20gostaria%20de%20reativar.', '_blank')}
+                            className="bg-white text-red-600 font-bold py-2 px-6 rounded-full hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 mx-auto"
+                        >
+                            <WhatsAppIcon /> Reativar Plano Agora
+                        </button>
+                    </div>
+                )}
+
+                {/* Quick Actions Grid - Only show functional if active */}
+                {isUserActive && (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <QuickAction 
+                            title="Guia Médico" 
+                            subtitle="Encontre especialistas" 
+                            icon={<StethoscopeIcon />} 
+                            colorClass="bg-blue-500"
+                            onClick={() => setActiveTab('doctors')}
                         />
-                    )}
-                    <QuickAction 
-                        title="Suporte" 
-                        subtitle="Fale no WhatsApp" 
-                        icon={<WhatsAppIcon />} 
-                        colorClass="bg-[#25D366]"
-                        onClick={() => window.open('https://wa.me/5553991560861', '_blank')}
-                    />
-                </div>
+                        {!isDependent && (
+                            <>
+                                <QuickAction 
+                                    title="Faturas" 
+                                    subtitle="2ª via e histórico" 
+                                    icon={<PaymentIcon />} 
+                                    colorClass="bg-green-500"
+                                    onClick={() => setActiveTab('payments')}
+                                />
+                                <QuickAction 
+                                    title="Dependentes" 
+                                    subtitle="Gerenciar família" 
+                                    icon={<UsersIcon />} 
+                                    colorClass="bg-purple-500"
+                                    onClick={() => setActiveTab('dependents')}
+                                />
+                            </>
+                        )}
+                        {isDependent && (
+                             <QuickAction 
+                                title="Avaliar" 
+                                subtitle="Avalie seu atendimento" 
+                                icon={<StarIcon />} 
+                                colorClass="bg-yellow-500"
+                                onClick={() => setActiveTab('rating')}
+                            />
+                        )}
+                        <QuickAction 
+                            title="Suporte" 
+                            subtitle="Fale no WhatsApp" 
+                            icon={<WhatsAppIcon />} 
+                            colorClass="bg-[#25D366]"
+                            onClick={() => window.open('https://wa.me/5553991560861', '_blank')}
+                        />
+                    </div>
+                )}
 
                 {/* Promo Banner */}
-                <div className="bg-gradient-to-r from-ds-dourado to-yellow-500 rounded-xl p-4 shadow-md text-ds-vinho flex items-center justify-between">
-                    <div>
-                        <h4 className="font-bold text-lg">Economize Energia! ⚡</h4>
-                        <p className="text-sm opacity-90">Clientes Descont'Saúde têm até 30% de desconto na conta de luz.</p>
+                {isUserActive && (
+                    <div className="bg-gradient-to-r from-ds-dourado to-yellow-500 rounded-xl p-4 shadow-md text-ds-vinho flex items-center justify-between">
+                        <div>
+                            <h4 className="font-bold text-lg">Economize Energia! ⚡</h4>
+                            <p className="text-sm opacity-90">Clientes Descont'Saúde têm até 30% de desconto na conta de luz.</p>
+                        </div>
+                        <button onClick={() => window.open('https://wa.me/5553991560861?text=Quero%20saber%20sobre%20o%20desconto%20de%20energia', '_blank')} className="bg-white/20 hover:bg-white/30 text-ds-vinho font-bold py-2 px-4 rounded-lg text-sm whitespace-nowrap ml-2">
+                            Saiba Mais
+                        </button>
                     </div>
-                    <button onClick={() => window.open('https://wa.me/5553991560861?text=Quero%20saber%20sobre%20o%20desconto%20de%20energia', '_blank')} className="bg-white/20 hover:bg-white/30 text-ds-vinho font-bold py-2 px-4 rounded-lg text-sm whitespace-nowrap ml-2">
-                        Saiba Mais
-                    </button>
-                </div>
+                )}
             </div>
         );
     }
@@ -236,8 +270,8 @@ const ClientDashboard: React.FC = () => {
             case 'doctors': return <DoctorList />;
             case 'rating': return <DoctorRating clientId={client.id} />;
             case 'history': return <ServiceHistory clientId={client.id} />;
-            case 'profile': return <Profile client={client} />; // Profile handles dependent logic internally now
-            case 'cards': return <DigitalCards client={client} />; // Cards handles dependent logic internally now
+            case 'profile': return <Profile client={client} />;
+            case 'cards': return <DigitalCards client={client} />;
             default: return null;
         }
     };

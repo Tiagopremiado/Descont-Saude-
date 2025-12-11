@@ -195,6 +195,21 @@ export const updateDependent = async (clientId: string, dependentId: string, dep
     return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
+export const resetDependentPassword = async (clientId: string, dependentId: string): Promise<{ success: boolean }> => {
+    await apiDelay(500);
+    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
+    if (clientIndex === -1) return { success: false };
+
+    const dependent = MOCK_CLIENTS[clientIndex].dependents.find(d => d.id === dependentId);
+    if (!dependent) return { success: false };
+
+    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('password_reset', `Senha do dependente ${dependent.name} resetada manualmente`));
+    
+    console.log(`Password for dependent ${dependentId} has been reset.`);
+    return { success: true };
+};
+
 const updateDependentStatus = (clientId: string, dependentId: string, status: Dependent['status']): Client | null => {
     const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
     if (clientIndex === -1) return null;
