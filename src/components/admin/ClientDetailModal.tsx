@@ -9,7 +9,9 @@ import AddDependentModal from './AddDependentModal';
 import EditDependentModal from './EditDependentModal';
 import ClientBillingsTab from './ClientBillingsTab';
 import ClientHistoryTab from './ClientHistoryTab';
+import IdCardView from './IdCardView';
 
+declare const html2canvas: any;
 
 interface ClientDetailModalProps {
   isOpen: boolean;
@@ -37,6 +39,12 @@ const PencilIcon = () => (
     </svg>
 );
 
+const IdCardIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+    </svg>
+);
+
 
 const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, client, onShowGenerationResult }) => {
   const [formData, setFormData] = useState<Client>(client);
@@ -47,6 +55,10 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
   const [isAddDependentModalOpen, setIsAddDependentModalOpen] = useState(false);
   const [dependentToEdit, setDependentToEdit] = useState<Dependent | null>(null);
   const [activeTab, setActiveTab] = useState<'data' | 'billings' | 'history'>('data');
+
+  // Card Viewer State
+  const [cardViewerData, setCardViewerData] = useState<{name: string, role: 'TITULAR' | 'DEPENDENTE', holderName?: string} | null>(null);
+  const [isCardProcessing, setIsCardProcessing] = useState(false);
 
 
   useEffect(() => {
@@ -151,6 +163,54 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
       }
   };
 
+  const handleViewCard = (name: string, role: 'TITULAR' | 'DEPENDENTE', holderName?: string) => {
+      setCardViewerData({ name, role, holderName });
+  };
+
+  const processCardAction = async (action: 'download' | 'share') => {
+        const cardElement = document.getElementById('admin-single-card-capture');
+        if (!cardElement) return;
+        
+        setIsCardProcessing(true);
+
+        try {
+            const canvas = await html2canvas(cardElement, { 
+                scale: 3, 
+                useCORS: true, 
+                backgroundColor: null,
+                logging: false
+            });
+            
+            if (action === 'download') {
+                const image = canvas.toDataURL('image/png', 1.0);
+                const link = document.createElement('a');
+                link.download = `cartao_${cardViewerData?.name.replace(/\s/g, '_')}.png`;
+                link.href = image;
+                link.click();
+            } else if (action === 'share') {
+                canvas.toBlob(async (blob: any) => {
+                    if (blob) {
+                        const file = new File([blob], `cartao_${cardViewerData?.name.replace(/\s/g, '_')}.png`, { type: 'image/png' });
+                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                files: [file],
+                                title: `Cartão Descont'Saúde`,
+                                text: `Cartão digital de ${cardViewerData?.name}.`
+                            });
+                        } else {
+                            alert("Compartilhamento não suportado neste navegador.");
+                        }
+                    }
+                }, 'image/png');
+            }
+        } catch (error) {
+            console.error('Erro ao processar cartão:', error);
+            alert('Erro ao gerar imagem.');
+        } finally {
+            setIsCardProcessing(false);
+        }
+  };
+
   const getDependentStatusChip = (status: Dependent['status']) => {
     const styles = {
         active: 'bg-green-100 text-green-800',
@@ -218,7 +278,18 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                     {/* Personal Data Section */}
                     <fieldset disabled={isFormSaving || !!dependentActionLoading}>
                     <div>
-                        <h4 className="font-bold text-gray-700 mb-2">Dados Pessoais</h4>
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-bold text-gray-700">Dados Pessoais</h4>
+                            {formData.status === 'active' && (
+                                <button 
+                                    type="button" 
+                                    onClick={() => handleViewCard(formData.name, 'TITULAR')}
+                                    className="text-xs bg-ds-dourado text-ds-vinho font-bold py-1 px-3 rounded-full hover:bg-opacity-90 flex items-center gap-1 shadow-sm"
+                                >
+                                    <IdCardIcon /> Ver Cartão
+                                </button>
+                            )}
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="edit-name" className={labelClass}>Nome Completo</label>
@@ -394,6 +465,18 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                             {getDependentStatusChip(dep.status)}
                                             {dependentActionLoading === dep.id && <div className="w-5 h-5"><Spinner /></div>}
                                             
+                                            {/* Card View Button for Dependent */}
+                                            {dep.status === 'active' && (
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => handleViewCard(dep.name, 'DEPENDENTE', formData.name)}
+                                                    className="p-1.5 text-ds-vinho bg-ds-dourado/20 rounded-full hover:bg-ds-dourado hover:text-white transition-colors"
+                                                    title="Ver Cartão"
+                                                >
+                                                    <IdCardIcon />
+                                                </button>
+                                            )}
+
                                             {/* Edit Button */}
                                             {dependentActionLoading !== dep.id && (
                                                 <button 
@@ -502,6 +585,40 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
             dependent={dependentToEdit}
             onSave={handleUpdateDependent}
         />
+    )}
+
+    {/* Single Card Viewer Modal */}
+    {cardViewerData && (
+        <Modal isOpen={!!cardViewerData} onClose={() => setCardViewerData(null)} title={`Cartão: ${cardViewerData.name.split(' ')[0]}`}>
+            <div className="flex justify-center items-center bg-gray-200 p-4 rounded-xl border border-gray-300 mb-4">
+                <div id="admin-single-card-capture" className="w-full max-w-[520px] p-4 bg-transparent flex justify-center">
+                    <IdCardView 
+                        name={cardViewerData.name} 
+                        role={cardViewerData.role} 
+                        cardNumber="528753" 
+                        holderName={cardViewerData.holderName} 
+                    />
+                </div>
+            </div>
+            <div className="flex gap-3">
+                <button 
+                    onClick={() => processCardAction('share')} 
+                    className="flex-1 bg-green-500 text-white font-bold py-3 px-4 rounded-xl hover:bg-green-600 shadow-md flex items-center justify-center gap-2"
+                    disabled={isCardProcessing}
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                    {isCardProcessing ? '...' : 'Compartilhar'}
+                </button>
+                <button 
+                    onClick={() => processCardAction('download')} 
+                    className="flex-1 bg-ds-vinho text-white font-bold py-3 px-4 rounded-xl hover:bg-opacity-90 shadow-md flex items-center justify-center gap-2"
+                    disabled={isCardProcessing}
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    {isCardProcessing ? '...' : 'Baixar'}
+                </button>
+            </div>
+        </Modal>
     )}
     </>
   );
