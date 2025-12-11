@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Client, Dependent } from '../../types';
-import { updateClient, approveDependent, rejectDependent, inactivateDependent, reactivateDependent, resetClientPassword, addDependent, requestDelivery } from '../../services/apiService';
+import { updateClient, approveDependent, rejectDependent, inactivateDependent, reactivateDependent, resetClientPassword, addDependent, requestDelivery, updateDependent } from '../../services/apiService';
 import { formatCPF } from '../../utils/cpfValidator';
 import Modal from '../common/Modal';
 import Spinner from '../common/Spinner';
 import AddDependentModal from './AddDependentModal';
+import EditDependentModal from './EditDependentModal';
 import ClientBillingsTab from './ClientBillingsTab';
 import ClientHistoryTab from './ClientHistoryTab';
 
@@ -29,6 +31,12 @@ const WhatsAppIcon = () => (
     </svg>
 );
 
+const PencilIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+    </svg>
+);
+
 
 const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, client, onShowGenerationResult }) => {
   const [formData, setFormData] = useState<Client>(client);
@@ -37,6 +45,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isAddDependentModalOpen, setIsAddDependentModalOpen] = useState(false);
+  const [dependentToEdit, setDependentToEdit] = useState<Dependent | null>(null);
   const [activeTab, setActiveTab] = useState<'data' | 'billings' | 'history'>('data');
 
 
@@ -97,6 +106,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         setFormData(updatedClient);
     }
   };
+
+  const handleUpdateDependent = async (dependentId: string, data: Partial<Omit<Dependent, 'id'>>) => {
+      const updatedClient = await updateDependent(client.id, dependentId, data);
+      if (updatedClient) {
+          setFormData(updatedClient);
+      }
+  }
 
   const handleConfirmPasswordReset = async () => {
     setIsResettingPassword(true);
@@ -377,6 +393,19 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                         <div className="flex items-center space-x-2">
                                             {getDependentStatusChip(dep.status)}
                                             {dependentActionLoading === dep.id && <div className="w-5 h-5"><Spinner /></div>}
+                                            
+                                            {/* Edit Button */}
+                                            {dependentActionLoading !== dep.id && (
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setDependentToEdit(dep)}
+                                                    className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                                                    title="Editar Dependente"
+                                                >
+                                                    <PencilIcon />
+                                                </button>
+                                            )}
+
                                             {dep.status === 'pending' && dependentActionLoading !== dep.id && (
                                                 <>
                                                     <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-green-500 text-white font-bold py-1 px-2 rounded-full hover:bg-green-600">Aprovar</button>
@@ -465,6 +494,15 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         onClose={() => setIsAddDependentModalOpen(false)}
         onAddDependent={handleAddDependent}
     />
+
+    {dependentToEdit && (
+        <EditDependentModal 
+            isOpen={!!dependentToEdit}
+            onClose={() => setDependentToEdit(null)}
+            dependent={dependentToEdit}
+            onSave={handleUpdateDependent}
+        />
+    )}
     </>
   );
 };

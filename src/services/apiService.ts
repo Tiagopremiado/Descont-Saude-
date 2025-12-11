@@ -174,6 +174,27 @@ export const addDependent = async (clientId: string, dependentData: Omit<Depende
     return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
+// New function to update existing dependent
+export const updateDependent = async (clientId: string, dependentId: string, dependentData: Partial<Omit<Dependent, 'id'>>): Promise<Client | null> => {
+    await apiDelay(500);
+    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
+    if (clientIndex === -1) return null;
+
+    const depIndex = MOCK_CLIENTS[clientIndex].dependents.findIndex(d => d.id === dependentId);
+    if (depIndex === -1) return null;
+
+    const oldData = MOCK_CLIENTS[clientIndex].dependents[depIndex];
+    MOCK_CLIENTS[clientIndex].dependents[depIndex] = { ...oldData, ...dependentData };
+
+    const changes = detectChanges(oldData, dependentData);
+    if (changes.length > 0) {
+        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente ${oldData.name} editado`, changes));
+    }
+
+    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
+};
+
 const updateDependentStatus = (clientId: string, dependentId: string, status: Dependent['status']): Client | null => {
     const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
     if (clientIndex === -1) return null;
