@@ -469,7 +469,8 @@ export const submitUpdateRequest = async (
     currentData: UpdateApprovalRequest['currentData'],
     updates: UpdateApprovalRequest['updates'],
     requestType: UpdateApprovalRequest['requestType'] = 'update',
-    payload?: string | UpdateApprovalRequest['newDependentData'] | UpdateApprovalRequest['cardRequestData']
+    payload?: string | UpdateApprovalRequest['newDependentData'] | UpdateApprovalRequest['cardRequestData'],
+    deliveryNote?: string // Optional delivery note
 ): Promise<UpdateApprovalRequest> => {
     await apiDelay(700);
     const client = MOCK_CLIENTS.find(c => c.id === clientId);
@@ -484,6 +485,7 @@ export const submitUpdateRequest = async (
         requestType,
         currentData,
         updates,
+        deliveryNote // Store the note in the request
     };
 
     if (requestType === 'cancellation' && typeof payload === 'string') {
@@ -520,6 +522,12 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
     if (clientIndex === -1) {
         MOCK_UPDATE_REQUESTS[requestIndex].status = 'rejected';
         return null;
+    }
+
+    // Add log for Delivery Note if present
+    if (request.deliveryNote) {
+        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', `Observação do Entregador: ${request.deliveryNote}`));
     }
 
     if (request.requestType === 'cancellation') {

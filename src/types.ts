@@ -118,6 +118,7 @@ export interface UpdateApprovalRequest {
     status: 'pending' | 'approved' | 'rejected';
     requestType: 'update' | 'cancellation' | 'new_dependent' | 'card_request'; 
     cancellationReason?: string;
+    deliveryNote?: string; // New field for courier observations
     
     // Data for contact/address updates
     updates: {

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { UpdateApprovalRequest } from '../../types';
 import { useData } from '../../context/DataContext';
@@ -95,8 +96,8 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                 if (hasNoChanges(req)) {
                     return (
                         <div className="text-center p-4 bg-blue-50 text-blue-800 rounded-md">
-                            <p className="font-semibold">Nenhuma alteração foi enviada.</p>
-                            <p className="text-sm">O entregador confirmou que os dados atuais do cliente estão corretos.</p>
+                            <p className="font-semibold">Confirmação de Visita/Entrega</p>
+                            <p className="text-sm">O entregador confirmou os dados sem alterações.</p>
                         </div>
                     );
                 }
@@ -178,6 +179,13 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
 
                             <div className="p-4">
                                 {renderRequestContent(req)}
+                                
+                                {req.deliveryNote && (
+                                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                        <p className="text-xs font-bold text-yellow-800 uppercase mb-1">Observação do Entregador:</p>
+                                        <p className="text-gray-800 text-sm whitespace-pre-line">{req.deliveryNote}</p>
+                                    </div>
+                                )}
                             </div>
 
                             {req.status === 'pending' && (

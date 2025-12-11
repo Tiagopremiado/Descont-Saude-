@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import type { Client, UpdateApprovalRequest, CourierFinancialRecord } from '../types';
 import { getUpdateRequests, deletePendingRequestByClientId, createDailyFinancialRecord, getCourierFinancialRecords } from '../services/apiService';
-import { importRouteData } from '../services/mockData';
+import { importRouteData, setBackupData } from '../services/mockData';
 import Spinner from '../components/common/Spinner';
 import ClientUpdateModal from '../components/entregador/ClientUpdateModal';
 import Modal from '../components/common/Modal';
@@ -242,20 +242,29 @@ const EntregadorDashboard: React.FC = () => {
             try {
                 const text = e.target?.result;
                 if (typeof text !== 'string') throw new Error("Failed to read file.");
-                const newRouteData = JSON.parse(text);
+                const backupData = JSON.parse(text);
                 
-                if (Array.isArray(newRouteData) && newRouteData.length > 0 && newRouteData[0].name) {
+                // VERIFICA SE É UM BACKUP COMPLETO (contém a chave 'clients')
+                if (backupData.clients && Array.isArray(backupData.clients)) {
+                     if(window.confirm("ATENÇÃO: Você está prestes a carregar um BACKUP COMPLETO do sistema. Isso substituirá TODOS os dados atuais (Clientes, Pagamentos, Médicos) pelos dados do arquivo. Deseja continuar?")) {
+                        setBackupData(backupData);
+                        alert("Backup completo carregado com sucesso! A página será recarregada.");
+                        window.location.reload();
+                     }
+                } 
+                // FALLBACK: Mantém a compatibilidade com arquivos de rota antigos (array direto)
+                else if (Array.isArray(backupData) && backupData.length > 0 && backupData[0].name) {
                     if(window.confirm("Isso atualizará os endereços dos clientes. Suas visitas de hoje SERÃO MANTIDAS. Deseja continuar?")) {
-                        importRouteData(newRouteData); 
+                        importRouteData(backupData); 
                         reloadData();
                         alert("Rota atualizada com sucesso!");
                     }
                 } else {
-                    throw new Error("Formato de arquivo inválido.");
+                    throw new Error("Formato de arquivo inválido. Use o Backup Completo do Admin ou um arquivo de Rota válido.");
                 }
             } catch (error) {
                 console.error("Error parsing route file:", error);
-                alert("Erro ao ler o arquivo.");
+                alert("Erro ao ler o arquivo. Verifique se é um backup válido.");
             } finally {
                 if (fileInputRef.current) fileInputRef.current.value = "";
             }
@@ -368,7 +377,7 @@ const EntregadorDashboard: React.FC = () => {
                                     className="bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm w-full sm:w-auto text-sm"
                                 >
                                     <ImportIcon />
-                                    Receber Rota
+                                    Carregar Backup Completo
                                 </button>
                                 <input 
                                     type="file" 
