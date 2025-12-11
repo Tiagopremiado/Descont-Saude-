@@ -12,8 +12,9 @@ const TrendingDownIcon = () => <svg className="w-4 h-4 text-red-500" fill="none"
 const UserGroupIcon = () => <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 const MoneyIcon = () => <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01m0 0v1m0-2c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const AlertIcon = () => <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>;
+const TargetIcon = () => <svg className="w-8 h-8 text-ds-vinho" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
 
-const StatCard: React.FC<{ title: string; value: string; subtext?: string; icon: React.ReactNode; trend?: 'up' | 'down' }> = ({ title, value, subtext, icon, trend }) => (
+const StatCard: React.FC<{ title: string; value: string; subtext?: string; icon: React.ReactNode; trend?: 'up' | 'down' | 'neutral' }> = ({ title, value, subtext, icon, trend }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-start justify-between transition-all hover:shadow-md">
         <div>
             <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
@@ -42,21 +43,39 @@ const AdminHome: React.FC = () => {
         const activeClients = clients.filter(c => c.status === 'active').length;
         const totalDependents = clients.reduce((acc, c) => acc + (c.status === 'active' ? c.dependents.length : 0), 0);
         
-        const currentMonth = new Date().toLocaleString('pt-BR', { month: 'long' });
-        const currentYear = new Date().getFullYear();
-        const CapitalizedMonth = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+        const now = new Date();
+        const currentMonthStr = now.toLocaleString('pt-BR', { month: 'long' });
+        const currentYear = now.getFullYear();
+        const CapitalizedMonth = currentMonthStr.charAt(0).toUpperCase() + currentMonthStr.slice(1);
 
+        // Financeiro
         const thisMonthPayments = payments.filter(p => p.month === CapitalizedMonth && p.year === currentYear);
         const totalRevenue = thisMonthPayments.reduce((acc, p) => acc + p.amount, 0); // Potencial total
         const realizedRevenue = thisMonthPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0);
         
         const overdueCount = thisMonthPayments.filter(p => p.status === 'overdue').length;
-        const pendingCount = thisMonthPayments.filter(p => p.status === 'pending').length;
-        const paidCount = thisMonthPayments.filter(p => p.status === 'paid').length;
         const totalCount = thisMonthPayments.length || 1;
-
         const delinquencyRate = ((overdueCount / totalCount) * 100).toFixed(1);
-        const receivedRate = ((paidCount / totalCount) * 100).toFixed(1);
+
+        // --- Lógica de Metas e Crescimento (New Clients vs Cancelled) ---
+        // Meta para Pedro Osório: 20 clientes/mês
+        const MONTHLY_GOAL = 20; 
+        
+        // Filtrar logs deste mês
+        const currentMonthLogs = clients.flatMap(c => c.logs || []).filter(log => {
+            const logDate = new Date(log.timestamp);
+            return logDate.getMonth() === now.getMonth() && logDate.getFullYear() === now.getFullYear();
+        });
+
+        const newClientsThisMonth = currentMonthLogs.filter(l => l.action === 'create').length;
+        
+        // Tenta contar cancelamentos pelos logs de status_change para inactive OU contagem manual se log falhar
+        const cancelledClientsThisMonth = currentMonthLogs.filter(l => 
+            l.action === 'status_change' && l.description.toLowerCase().includes('inativo')
+        ).length;
+
+        const netGrowth = newClientsThisMonth - cancelledClientsThisMonth;
+        const goalProgress = Math.min((newClientsThisMonth / MONTHLY_GOAL) * 100, 100);
 
         return {
             activeClients,
@@ -64,8 +83,12 @@ const AdminHome: React.FC = () => {
             realizedRevenue,
             projectedRevenue: totalRevenue,
             delinquencyRate,
-            receivedRate,
-            currentMonth: CapitalizedMonth
+            currentMonth: CapitalizedMonth,
+            newClientsThisMonth,
+            cancelledClientsThisMonth,
+            netGrowth,
+            goalProgress,
+            monthlyGoal: MONTHLY_GOAL
         };
     }, [clients, payments]);
 
@@ -137,6 +160,49 @@ const AdminHome: React.FC = () => {
                     icon={<AlertIcon />}
                     trend={parseFloat(stats.delinquencyRate) > 15 ? 'down' : 'up'}
                 />
+            </div>
+
+            {/* Nova Seção: Metas e Crescimento */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex flex-col md:flex-row justify-between items-end mb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-ds-vinho flex items-center gap-2">
+                            <TargetIcon />
+                            Meta de Vendas ({stats.currentMonth})
+                        </h3>
+                        <p className="text-sm text-gray-500">Objetivo: {stats.monthlyGoal} novos titulares (Pedro Osório)</p>
+                    </div>
+                    <div className="text-right">
+                        <span className="text-3xl font-bold text-gray-800">{stats.newClientsThisMonth}</span>
+                        <span className="text-gray-400 text-sm"> / {stats.monthlyGoal}</span>
+                    </div>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
+                    <div 
+                        className={`h-4 rounded-full transition-all duration-1000 ${stats.goalProgress >= 100 ? 'bg-green-500' : 'bg-ds-vinho'}`} 
+                        style={{ width: `${stats.goalProgress}%` }}
+                    ></div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+                    <div className="text-center">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Novos Contratos</p>
+                        <p className="text-2xl font-bold text-green-600">+{stats.newClientsThisMonth}</p>
+                    </div>
+                    <div className="text-center border-l border-r border-gray-100">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Cancelamentos</p>
+                        <p className="text-2xl font-bold text-red-600">-{stats.cancelledClientsThisMonth}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Saldo Líquido</p>
+                        <p className={`text-2xl font-bold ${stats.netGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {stats.netGrowth > 0 ? '+' : ''}{stats.netGrowth}
+                        </p>
+                        <p className="text-[10px] text-gray-400">Crescimento Real</p>
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
