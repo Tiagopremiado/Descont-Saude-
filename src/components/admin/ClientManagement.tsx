@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Client } from '../../types';
 import { useData } from '../../context/DataContext';
@@ -187,41 +188,55 @@ const ClientManagement: React.FC<ClientManagementProps> = ({
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white">
-                                {paginatedClients.map((client) => (
-                                    <tr 
-                                        key={client.id}
-                                        className="group transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.15)] hover:bg-white hover:scale-[1.01] hover:z-20 relative border-l-4 border-transparent hover:border-ds-vinho rounded-md"
-                                    >
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="text-sm font-medium text-gray-900 group-hover:text-ds-vinho group-hover:font-bold transition-colors">
-                                                    {client.name}
+                            <tbody>
+                                {paginatedClients.map((client) => {
+                                    const isInactive = client.status === 'inactive';
+                                    return (
+                                        <tr 
+                                            key={client.id}
+                                            className={`group transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.15)] hover:scale-[1.01] hover:z-20 relative border-l-4 rounded-md ${
+                                                isInactive 
+                                                ? 'bg-red-50 border-red-500 hover:bg-red-100' 
+                                                : 'bg-white border-green-500 hover:border-green-600 hover:bg-white'
+                                            }`}
+                                        >
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <div className={`text-sm font-medium transition-colors ${
+                                                        isInactive 
+                                                        ? 'text-red-700 font-bold' 
+                                                        : 'text-gray-900 group-hover:text-green-700 group-hover:font-bold'
+                                                    }`}>
+                                                        {client.name}
+                                                    </div>
+                                                    {hasPendingDependent(client) && (
+                                                        <span title="Dependente pendente" className="ml-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></span>
+                                                    )}
                                                 </div>
-                                                {hasPendingDependent(client) && (
-                                                    <span title="Dependente pendente" className="ml-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.cpf}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.phone}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">{getStatusChip(client.status)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <div className="flex items-center gap-3">
-                                                <button 
-                                                    onClick={() => handleWhatsAppClick(client)} 
-                                                    className="text-green-600 hover:text-green-800 transition-colors transform hover:scale-110"
-                                                    title="Chamar no WhatsApp"
-                                                >
-                                                    <WhatsAppIcon />
-                                                </button>
-                                                <button onClick={() => setSelectedClient(client)} className="text-ds-vinho hover:text-ds-dourado font-semibold">
-                                                    Ver / Editar
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-red-600' : 'text-gray-500'}`}>{client.cpf}</td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${isInactive ? 'text-red-600' : 'text-gray-500'}`}>{client.phone}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap">{getStatusChip(client.status)}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <div className="flex items-center gap-3">
+                                                    <button 
+                                                        onClick={() => handleWhatsAppClick(client)} 
+                                                        className="text-green-600 hover:text-green-800 transition-colors transform hover:scale-110"
+                                                        title="Chamar no WhatsApp"
+                                                    >
+                                                        <WhatsAppIcon />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setSelectedClient(client)} 
+                                                        className={`font-semibold hover:underline ${isInactive ? 'text-red-700 hover:text-red-900' : 'text-ds-vinho hover:text-ds-dourado'}`}
+                                                    >
+                                                        Ver / Editar
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                         {paginatedClients.length === 0 && <p className="text-center text-gray-500 py-4">Nenhum cliente encontrado.</p>}
