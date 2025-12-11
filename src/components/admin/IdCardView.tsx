@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 
 interface IdCardViewProps {
     name: string;
@@ -9,6 +9,8 @@ interface IdCardViewProps {
 }
 
 const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', cardNumber = '', holderName }) => {
+    const [isFullScreen, setIsFullScreen] = useState(false);
+
     // Define o ano de validade
     const validYear = new Date().getFullYear() + 1; 
 
@@ -20,10 +22,15 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
     const gradientId = useMemo(() => `gold-grad-${Math.random().toString(36).substr(2,9)}`, []);
     const dropShadowId = useMemo(() => `drop-shadow-${Math.random().toString(36).substr(2,9)}`, []);
 
-    return (
+    // Função para renderizar o conteúdo do cartão (usada tanto no modo normal quanto tela cheia)
+    const renderCardContent = (isZoomed: boolean) => (
         <div 
-            className="w-full max-w-[480px] rounded-2xl relative overflow-hidden shadow-2xl bg-[#5c0416] text-white font-sans mx-auto transition-transform hover:scale-[1.02] duration-300 select-none"
-            style={{ aspectRatio: '1.586 / 1', minHeight: '200px' }}
+            className={`w-full relative overflow-hidden shadow-2xl bg-[#5c0416] text-white font-sans mx-auto transition-transform duration-300 select-none rounded-2xl`}
+            style={{ 
+                aspectRatio: '1.586 / 1', 
+                maxWidth: isZoomed ? '800px' : '540px', // Aumentado de 480px para 540px (normal) e 800px (zoom)
+                minHeight: '220px'
+            }}
         >
             {/* Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#750721] via-[#5c0416] to-[#2b020a] z-0"></div>
@@ -47,8 +54,8 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
             </svg>
 
             {/* Logo Section */}
-            <div className="absolute top-5 left-6 md:top-7 md:left-8 flex items-center gap-3 z-10">
-                <div className="w-10 h-10 md:w-14 md:h-14 relative drop-shadow-md">
+            <div className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-4 z-10">
+                <div className={`${isZoomed ? 'w-20 h-20' : 'w-12 h-12 md:w-16 md:h-16'} relative drop-shadow-md transition-all`}>
                     <svg viewBox="0 0 100 100" fill={`url(#${gradientId})`}>
                         <defs>
                             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -74,51 +81,51 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
                     </svg>
                 </div>
                 <div>
-                    <h1 className="text-xl md:text-3xl font-bold tracking-tight leading-none text-white drop-shadow-sm">
+                    <h1 className={`${isZoomed ? 'text-4xl' : 'text-2xl md:text-3xl'} font-bold tracking-tight leading-none text-white drop-shadow-sm transition-all`}>
                         Desconto <span className="text-[#D0AB6A]">+</span> <span className="text-[#D0AB6A]">Saúde</span>
                     </h1>
-                    <p className="text-[9px] md:text-[10px] tracking-wide text-gray-200 mt-0.5 font-light opacity-90">Seu parceiro em saúde e bem-estar.</p>
+                    <p className={`${isZoomed ? 'text-sm' : 'text-[10px] md:text-xs'} tracking-wide text-gray-200 mt-1 font-light opacity-90 transition-all`}>Seu parceiro em saúde e bem-estar.</p>
                 </div>
             </div>
 
             {/* Chip */}
-            <div className="absolute top-24 left-8 w-10 h-8 bg-gradient-to-tr from-[#e0c388] to-[#bfa065] rounded-md opacity-90 border border-[#917646] shadow-sm hidden sm:block z-10">
+            <div className={`absolute ${isZoomed ? 'top-32 left-10 w-16 h-12' : 'top-28 left-8 w-12 h-9'} bg-gradient-to-tr from-[#e0c388] to-[#bfa065] rounded-md opacity-90 border border-[#917646] shadow-sm hidden sm:block z-10 transition-all`}>
                 <div className="w-full h-full relative opacity-50">
                     <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black"></div>
                     <div className="absolute top-0 left-1/2 w-[1px] h-full bg-black"></div>
-                    <div className="absolute top-2 left-2 w-6 h-4 border border-black rounded-sm"></div>
+                    <div className="absolute top-2 left-2 w-full h-full border-l border-t border-black rounded-sm scale-75"></div>
                 </div>
             </div>
 
             {/* Content Body */}
-            <div className="absolute bottom-7 left-6 right-6 md:left-8 md:right-8 z-10">
+            <div className={`absolute ${isZoomed ? 'bottom-10 left-10 right-10' : 'bottom-8 left-7 right-7 md:left-9 md:right-9'} z-10 transition-all`}>
                 <div className="flex flex-col">
-                    {/* Role Label */}
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="inline-flex items-center justify-center text-[9px] font-bold text-[#D0AB6A] uppercase tracking-[0.15em] border border-[#D0AB6A] px-2 py-0.5 rounded shadow-sm bg-[#5c0416]/80 backdrop-blur-sm">
+                    {/* Role Label - Aumentei mb para dar espaço */}
+                    <div className={`flex items-center gap-2 ${isZoomed ? 'mb-4' : 'mb-3'}`}>
+                        <span className={`inline-flex items-center justify-center ${isZoomed ? 'text-sm px-4 py-1.5' : 'text-[10px] px-3 py-1'} font-bold text-[#D0AB6A] uppercase tracking-[0.15em] border border-[#D0AB6A] rounded shadow-sm bg-[#5c0416]/80 backdrop-blur-sm transition-all`}>
                             {role}
                         </span>
                         {role === 'DEPENDENTE' && holderName && (
-                            <span className="text-[9px] text-gray-300 uppercase tracking-wider font-medium truncate max-w-[200px]">
+                            <span className={`${isZoomed ? 'text-sm' : 'text-[10px]'} text-gray-300 uppercase tracking-wider font-medium truncate max-w-[250px]`}>
                                 Resp: {holderName.split(' ')[0]}
                             </span>
                         )}
                     </div>
 
                     {/* Name */}
-                    <h2 className="text-lg md:text-xl font-medium text-white uppercase tracking-wider drop-shadow-md whitespace-nowrap overflow-hidden pb-1 leading-snug" style={{ fontFamily: '"Courier New", Courier, monospace', letterSpacing: '0.05em', textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+                    <h2 className={`${isZoomed ? 'text-3xl' : 'text-xl md:text-2xl'} font-medium text-white uppercase tracking-wider drop-shadow-md whitespace-nowrap overflow-hidden pb-1 leading-normal transition-all`} style={{ fontFamily: '"Courier New", Courier, monospace', letterSpacing: '0.05em', textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
                         {name}
                     </h2>
                     
                     <div className="flex justify-between items-end mt-1">
                         {/* Card Number */}
-                        <p className="text-xs md:text-sm text-gray-300 font-mono tracking-widest opacity-80" style={{ textShadow: '1px 1px 1px rgba(0,0,0,0.5)' }}>
+                        <p className={`${isZoomed ? 'text-xl' : 'text-sm md:text-base'} text-gray-300 font-mono tracking-widest opacity-80 transition-all`} style={{ textShadow: '1px 1px 1px rgba(0,0,0,0.5)' }}>
                             {formattedCardNumber}
                         </p>
 
                         {/* Bottom Right Year */}
                         <div className="text-right">
-                            <p className="text-xs font-bold text-[#D0AB6A] tracking-wider drop-shadow-sm">CARTÃO {validYear}</p>
+                            <p className={`${isZoomed ? 'text-base' : 'text-xs md:text-sm'} font-bold text-[#D0AB6A] tracking-wider drop-shadow-sm transition-all`}>CARTÃO {validYear}</p>
                         </div>
                     </div>
                 </div>
@@ -126,8 +133,51 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
 
             {/* Footer CNPJ */}
             <div className="absolute bottom-1.5 w-full text-center z-10">
-                <p className="text-[8px] text-white/50 tracking-widest font-sans">CNPJ: 09.371.421/0001-01</p>
+                <p className={`${isZoomed ? 'text-[10px]' : 'text-[8px]'} text-white/50 tracking-widest font-sans transition-all`}>CNPJ: 09.371.421/0001-01</p>
             </div>
+        </div>
+    );
+
+    return (
+        <div className="relative group">
+            {/* Standard View */}
+            <div className="relative">
+                {renderCardContent(false)}
+                
+                {/* Expand Button */}
+                <button 
+                    onClick={() => setIsFullScreen(true)}
+                    className="absolute top-2 right-2 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 backdrop-blur-sm"
+                    title="Ver em Tela Cheia"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                </button>
+            </div>
+
+            {/* Fullscreen Modal */}
+            {isFullScreen && (
+                <div 
+                    className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 animate-fade-in"
+                    onClick={() => setIsFullScreen(false)}
+                >
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setIsFullScreen(false); }}
+                        className="absolute top-4 right-4 text-white/70 hover:text-white p-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    
+                    <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center">
+                        {renderCardContent(true)}
+                    </div>
+                    
+                    <p className="text-white/60 mt-6 text-sm font-medium">Toque fora para fechar</p>
+                </div>
+            )}
         </div>
     );
 };
