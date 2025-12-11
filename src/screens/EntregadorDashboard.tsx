@@ -36,6 +36,12 @@ const CheckCircleIcon = () => (
     </svg>
 );
 
+const XCircleIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+    </svg>
+);
+
 const MoneyIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
         <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" />
@@ -80,19 +86,38 @@ const EntregadorDashboard: React.FC = () => {
         return updateRequests.filter(req => new Date(req.requestedAt).toDateString() === todayStr);
     }, [updateRequests]);
 
-    // IDs entregues HOJE (independente se já foi fechado o caixa ou não, para manter o check verde)
+    // IDs entregues HOJE COM SUCESSO
     const clientsDeliveredTodayIds = useMemo(() => {
-        return new Set(todaysRequests.map(req => req.clientId));
+        return new Set(todaysRequests
+            .filter(req => req.requestType !== 'delivery_failed')
+            .map(req => req.clientId)
+        );
+    }, [todaysRequests]);
+
+    // IDs com tentativa FALHA (Ausente) HOJE
+    const clientsAbsentTodayIds = useMemo(() => {
+        return new Set(todaysRequests
+            .filter(req => req.requestType === 'delivery_failed')
+            .map(req => req.clientId)
+        );
     }, [todaysRequests]);
 
     // 3. Requisições em ABERTO (ainda não fechadas financeiramente)
-    // São aquelas criadas DEPOIS do último registro financeiro
     const openSessionRequests = useMemo(() => {
         return updateRequests.filter(req => new Date(req.requestedAt).getTime() > latestRecordDate);
     }, [updateRequests, latestRecordDate]);
 
+    // ID de todos os clientes processados nesta sessão aberta (sucesso OU falha) para permitir reversão
     const openSessionClientIds = useMemo(() => {
         return new Set(openSessionRequests.map(req => req.clientId));
+    }, [openSessionRequests]);
+
+    // IDs apenas das entregas de SUCESSO na sessão aberta (para cálculo financeiro)
+    const openSessionSuccessIds = useMemo(() => {
+        return new Set(openSessionRequests
+            .filter(req => req.requestType !== 'delivery_failed')
+            .map(req => req.clientId)
+        );
     }, [openSessionRequests]);
 
     // Estatísticas da rota
@@ -100,24 +125,24 @@ const EntregadorDashboard: React.FC = () => {
         const activeClients = clients.filter(c => c.status === 'active');
         const total = activeClients.length;
         
-        // Progresso visual: baseado em TUDO feito hoje
-        const deliveredToday = clientsDeliveredTodayIds.size;
-        const pendingToday = total - deliveredToday;
-        const progress = total > 0 ? (deliveredToday / total) * 100 : 0;
+        // Progresso visual: baseado em TUDO feito hoje (sucesso + ausente)
+        const processedToday = clientsDeliveredTodayIds.size + clientsAbsentTodayIds.size;
+        const pendingToday = total - processedToday;
+        const progress = total > 0 ? (processedToday / total) * 100 : 0;
 
-        // Financeiro: baseado APENAS no que está em aberto (sessão atual)
-        const sessionDeliveredCount = openSessionClientIds.size; // Usamos size do Set para evitar duplicatas de ID na contagem
+        // Financeiro: baseado APENAS no que foi entregue com SUCESSO na sessão aberta
+        const sessionDeliveredCount = openSessionSuccessIds.size;
         const currentEarnings = sessionDeliveredCount * DELIVERY_PRICE;
 
         return { 
             total, 
-            deliveredToday, 
+            processedToday, 
             pendingToday, 
             currentEarnings, 
             progress,
             sessionDeliveredCount 
         };
-    }, [clients, clientsDeliveredTodayIds, openSessionClientIds]);
+    }, [clients, clientsDeliveredTodayIds, clientsAbsentTodayIds, openSessionSuccessIds]);
 
     // Calcular financeiro histórico + atual
     const financialStats = useMemo(() => {
@@ -142,16 +167,19 @@ const EntregadorDashboard: React.FC = () => {
                 c.address.toLowerCase().includes(searchTerm.toLowerCase())
             )
             .sort((a, b) => {
-                const aUpdated = clientsDeliveredTodayIds.has(a.id);
-                const bUpdated = clientsDeliveredTodayIds.has(b.id);
-                if (aUpdated === bUpdated) {
+                const aProcessed = clientsDeliveredTodayIds.has(a.id) || clientsAbsentTodayIds.has(a.id);
+                const bProcessed = clientsDeliveredTodayIds.has(b.id) || clientsAbsentTodayIds.has(b.id);
+                
+                // Se ambos foram processados ou ambos pendentes
+                if (aProcessed === bProcessed) {
                     if (a.deliveryStatus?.pending && !b.deliveryStatus?.pending) return -1;
                     if (!a.deliveryStatus?.pending && b.deliveryStatus?.pending) return 1;
                     return a.name.localeCompare(b.name);
                 }
-                return aUpdated ? 1 : -1;
+                // Processados vão para o final
+                return aProcessed ? 1 : -1;
             });
-    }, [clients, searchTerm, clientsDeliveredTodayIds]);
+    }, [clients, searchTerm, clientsDeliveredTodayIds, clientsAbsentTodayIds]);
 
     const handleUpdateComplete = () => {
         fetchRequests();
@@ -172,20 +200,22 @@ const EntregadorDashboard: React.FC = () => {
         const countToClose = currentRouteStats.sessionDeliveredCount;
         const amountToClose = currentRouteStats.currentEarnings;
 
-        if (countToClose === 0) {
-            alert("Nenhuma nova entrega para encerrar neste momento.");
+        if (openSessionRequests.length === 0) {
+            alert("Nenhuma atividade recente para encerrar.");
             return;
         }
 
-        if(!window.confirm(`Confirma o encerramento deste lote de entregas?\n\nNovas Entregas: ${countToClose}\nValor deste lote: R$ ${amountToClose.toFixed(2)}\n\nIsso irá gerar o registro de cobrança e zerar o contador financeiro atual.`)) {
+        if(!window.confirm(`Confirma o encerramento deste lote?\n\nEntregas com Sucesso: ${countToClose}\nAusências/Falhas: ${openSessionRequests.length - countToClose}\n\nValor a receber deste lote: R$ ${amountToClose.toFixed(2)}\n\nIsso irá gerar o registro de cobrança e zerar o contador financeiro atual.`)) {
             return;
         }
 
         try {
-            // Create financial record
-            await createDailyFinancialRecord(countToClose, DELIVERY_PRICE);
+            // Create financial record (only pays for successful deliveries)
+            if (countToClose > 0) {
+                await createDailyFinancialRecord(countToClose, DELIVERY_PRICE);
+            }
             
-            // Generate report based on OPEN SESSION requests
+            // Generate report based on ALL open session requests (including failed)
             const dataStr = JSON.stringify(openSessionRequests, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
             const file = new File([blob], `relatorio_entregas_lote_${new Date().toISOString().slice(0, 16).replace(/:/g, '-')}.json`, { type: "application/json" });
@@ -195,7 +225,7 @@ const EntregadorDashboard: React.FC = () => {
                 try {
                     await navigator.share({
                         title: 'Fechamento de Lote - Entregas',
-                        text: `Lote fechado! ${countToClose} entregas. Valor: R$ ${amountToClose.toFixed(2)}`,
+                        text: `Lote fechado! ${countToClose} entregas pagas. Valor: R$ ${amountToClose.toFixed(2)}`,
                         files: [file]
                     });
                 } catch (error) {
@@ -212,7 +242,7 @@ const EntregadorDashboard: React.FC = () => {
                 URL.revokeObjectURL(url);
                 
                 const adminPhone = "5553991560861"; 
-                const message = `*Fechamento de Lote - ${new Date().toLocaleDateString('pt-BR')}*\n\n✅ Entregas neste lote: ${countToClose}\n💰 Valor: R$ ${amountToClose.toFixed(2)}\n\n(Anexe o arquivo baixado)`;
+                const message = `*Fechamento de Lote - ${new Date().toLocaleDateString('pt-BR')}*\n\n✅ Entregas Pagas: ${countToClose}\n💰 Valor: R$ ${amountToClose.toFixed(2)}\n\n(Anexe o arquivo baixado)`;
                 const waUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
 
                 if(window.confirm("Arquivo baixado!\n\nDeseja abrir o WhatsApp agora para enviar o relatório?")) {
@@ -273,11 +303,11 @@ const EntregadorDashboard: React.FC = () => {
     }
 
     const handleClientClick = (client: Client) => {
-        // If client is in the OPEN session list, allow revert
+        // If client is in the OPEN session list (success or failure), allow revert
         if (openSessionClientIds.has(client.id)) {
             setClientToRevert(client);
-        } else if (clientsDeliveredTodayIds.has(client.id)) {
-            // Already delivered today but likely closed in previous batch
+        } else if (clientsDeliveredTodayIds.has(client.id) || clientsAbsentTodayIds.has(client.id)) {
+            // Already processed today but likely closed in previous batch
             alert("Esta entrega já foi contabilizada em um fechamento anterior hoje. Não é possível reverter por aqui.");
         } else {
             setSelectedClient(client);
@@ -359,8 +389,8 @@ const EntregadorDashboard: React.FC = () => {
                                     <p className="font-bold">{currentRouteStats.total}</p>
                                 </div>
                                 <div>
-                                    <p className="text-green-600 font-semibold">Feito</p>
-                                    <p className="font-bold">{currentRouteStats.deliveredToday}</p>
+                                    <p className="text-green-600 font-semibold">Visitados</p>
+                                    <p className="font-bold">{currentRouteStats.processedToday}</p>
                                 </div>
                                 <div>
                                     <p className="text-orange-600 font-semibold">Falta</p>
@@ -409,47 +439,60 @@ const EntregadorDashboard: React.FC = () => {
                         {isLoading ? <Spinner /> : (
                             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                                 <ul className="divide-y divide-gray-200">
-                                    {filteredClients.map(client => (
-                                        <li key={client.id} className={clientsDeliveredTodayIds.has(client.id) ? "bg-gray-50" : ""}>
-                                            <div className="flex w-full hover:bg-gray-100 transition-colors relative">
-                                                <button 
-                                                    onClick={() => handleClientClick(client)}
-                                                    className="flex-grow text-left p-4 pr-16 focus:outline-none"
-                                                >
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <p className={`font-semibold ${clientsDeliveredTodayIds.has(client.id) ? 'text-green-700 line-through decoration-green-700' : 'text-ds-vinho'}`}>
-                                                                {client.name}
-                                                            </p>
-                                                            {!clientsDeliveredTodayIds.has(client.id) && getDeliveryBadge(client.deliveryStatus)}
-                                                        </div>
-                                                        <p className="text-sm text-gray-600">{`${client.address}, ${client.addressNumber} - ${client.neighborhood}`}</p>
-                                                        <p className="text-xs text-gray-500">{client.city}</p>
-                                                    </div>
-                                                    <div className="mt-1">
-                                                        {clientsDeliveredTodayIds.has(client.id) ? (
-                                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                                                                <CheckCircleIcon />
-                                                                Entregue
-                                                            </span>
-                                                        ) : (
-                                                             <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">Pendente</span>
-                                                        )}
-                                                    </div>
-                                                </button>
-                                                
-                                                <div className="flex items-center justify-center p-2 absolute right-2 top-1/2 -translate-y-1/2">
-                                                    <button
-                                                        onClick={(e) => openGoogleMaps(e, client)}
-                                                        className="bg-blue-100 text-blue-600 p-3 rounded-full hover:bg-blue-200 transition-colors shadow-sm"
-                                                        title="Abrir Rota no GPS"
+                                    {filteredClients.map(client => {
+                                        const isDelivered = clientsDeliveredTodayIds.has(client.id);
+                                        const isAbsent = clientsAbsentTodayIds.has(client.id);
+                                        const isProcessed = isDelivered || isAbsent;
+
+                                        return (
+                                            <li key={client.id} className={isProcessed ? "bg-gray-50" : ""}>
+                                                <div className="flex w-full hover:bg-gray-100 transition-colors relative">
+                                                    <button 
+                                                        onClick={() => handleClientClick(client)}
+                                                        className="flex-grow text-left p-4 pr-16 focus:outline-none"
                                                     >
-                                                        <MapIcon />
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className={`font-semibold ${isProcessed ? 'text-gray-500' : 'text-ds-vinho'}`}>
+                                                                    {client.name}
+                                                                </p>
+                                                                {!isProcessed && getDeliveryBadge(client.deliveryStatus)}
+                                                            </div>
+                                                            <p className="text-sm text-gray-600">{`${client.address}, ${client.addressNumber} - ${client.neighborhood}`}</p>
+                                                            <p className="text-xs text-gray-500">{client.city}</p>
+                                                        </div>
+                                                        <div className="mt-1">
+                                                            {isDelivered && (
+                                                                <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                                                    <CheckCircleIcon />
+                                                                    Entregue
+                                                                </span>
+                                                            )}
+                                                            {isAbsent && (
+                                                                <span className="inline-flex items-center gap-1 text-xs font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full">
+                                                                    <XCircleIcon />
+                                                                    Ausente
+                                                                </span>
+                                                            )}
+                                                            {!isProcessed && (
+                                                                 <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">Pendente</span>
+                                                            )}
+                                                        </div>
                                                     </button>
+                                                    
+                                                    <div className="flex items-center justify-center p-2 absolute right-2 top-1/2 -translate-y-1/2">
+                                                        <button
+                                                            onClick={(e) => openGoogleMaps(e, client)}
+                                                            className="bg-blue-100 text-blue-600 p-3 rounded-full hover:bg-blue-200 transition-colors shadow-sm"
+                                                            title="Abrir Rota no GPS"
+                                                        >
+                                                            <MapIcon />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </li>
-                                    ))}
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                                 {filteredClients.length === 0 && <p className="text-center text-gray-500 p-6">Nenhum cliente encontrado.</p>}
                             </div>
@@ -481,7 +524,7 @@ const EntregadorDashboard: React.FC = () => {
                         <div>
                             <p className="text-lg font-bold text-gray-900">Reverter status de {clientToRevert.name}?</p>
                             <p className="text-sm text-gray-500 mt-2">
-                                Esta entrega ainda não foi fechada financeiramente, então você pode desfazer e ela voltará para "Pendente".
+                                Esta ação ainda não foi fechada no lote, então você pode desfazer e ela voltará para "Pendente".
                             </p>
                         </div>
                         <div className="flex gap-3 pt-2">
