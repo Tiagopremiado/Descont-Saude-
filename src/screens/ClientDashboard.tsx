@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import type { Client } from '../types';
+import type { Client, Dependent } from '../types';
 import { getClientById } from '../services/apiService';
 import Spinner from '../components/common/Spinner';
 import PaymentHistory from '../components/client/PaymentHistory';
@@ -23,6 +23,8 @@ const ClientDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<ClientTab>('home');
 
+    const isDependent = user?.role === 'dependent';
+    
     const fetchClientData = useCallback(async () => {
         if (user?.clientId) {
             const data = await getClientById(user.clientId);
@@ -47,6 +49,16 @@ const ClientDashboard: React.FC = () => {
         };
     }, [user, fetchClientData]);
     
+    // Determine the current user's data (if dependent)
+    const currentUserData = useMemo(() => {
+        if (!client) return null;
+        if (isDependent && user?.dependentId) {
+            const dep = client.dependents.find(d => d.id === user.dependentId);
+            return dep || null;
+        }
+        return client; // If titular, return full client object
+    }, [client, isDependent, user]);
+
     const handleLogoutRequest = () => {
         if (isDirty) {
              if (window.confirm("Você tem alterações não salvas. Deseja sair mesmo assim?")) {
@@ -88,108 +100,144 @@ const ClientDashboard: React.FC = () => {
         </button>
     );
 
-    const renderHome = () => (
-        <div className="space-y-6 animate-fade-in">
-            {/* Hero Card */}
-            <div className="bg-gradient-to-br from-ds-vinho to-[#4a0415] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-ds-dourado opacity-10 rounded-full blur-3xl"></div>
-                
-                <div className="relative z-10">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-ds-dourado font-medium text-sm mb-1 uppercase tracking-wider">Bem-vindo(a)</p>
-                            <h2 className="text-3xl font-serif font-bold">{client?.name.split(' ')[0]}</h2>
-                            <p className="text-white/80 text-sm mt-1">{client?.plan}</p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${client?.status === 'active' ? 'bg-green-500/20 border-green-400 text-green-300' : 'bg-red-500/20 border-red-400 text-red-300'}`}>
-                            {client?.status === 'active' ? 'PLANO ATIVO' : 'INATIVO'}
-                        </span>
-                    </div>
+    const renderHome = () => {
+        const userName = currentUserData ? ('name' in currentUserData ? currentUserData.name : '') : '';
+        const firstName = userName.split(' ')[0];
+        
+        // Status logic: 
+        // Titular: client.status
+        // Dependent: client.status AND dependent.status
+        let isActive = client?.status === 'active';
+        if (isDependent && currentUserData) {
+            isActive = isActive && (currentUserData as Dependent).status === 'active';
+        }
 
-                    <div className="mt-8 flex items-center justify-between">
-                        <div className="flex -space-x-2">
-                            <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-ds-vinho flex items-center justify-center text-xs font-bold">
-                                {client?.name.charAt(0)}
+        return (
+            <div className="space-y-6 animate-fade-in">
+                {/* Hero Card */}
+                <div className="bg-gradient-to-br from-ds-vinho to-[#4a0415] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-ds-dourado opacity-10 rounded-full blur-3xl"></div>
+                    
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-ds-dourado font-medium text-sm mb-1 uppercase tracking-wider">
+                                    {isDependent ? 'Área do Dependente' : 'Bem-vindo(a)'}
+                                </p>
+                                <h2 className="text-3xl font-serif font-bold">{firstName}</h2>
+                                {isDependent && (
+                                    <p className="text-white/80 text-sm mt-1">Titular: {client?.name}</p>
+                                )}
+                                {!isDependent && <p className="text-white/80 text-sm mt-1">{client?.plan}</p>}
                             </div>
-                            {client?.dependents.slice(0, 3).map((dep, i) => (
-                                <div key={i} className="w-8 h-8 rounded-full bg-white/20 border-2 border-ds-vinho flex items-center justify-center text-xs font-bold">
-                                    {dep.name.charAt(0)}
-                                </div>
-                            ))}
-                            {client?.dependents.length > 3 && (
-                                <div className="w-8 h-8 rounded-full bg-ds-dourado border-2 border-ds-vinho flex items-center justify-center text-xs font-bold text-ds-vinho">
-                                    +{client.dependents.length - 3}
-                                </div>
-                            )}
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isActive ? 'bg-green-500/20 border-green-400 text-green-300' : 'bg-red-500/20 border-red-400 text-red-300'}`}>
+                                {isActive ? 'PLANO ATIVO' : 'INATIVO'}
+                            </span>
                         </div>
-                        <button 
-                            onClick={() => setActiveTab('cards')}
-                            className="text-sm bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                        >
-                            <CardIcon /> Ver Carteirinha
-                        </button>
+
+                        <div className="mt-8 flex items-center justify-between">
+                            <div className="flex -space-x-2">
+                                {/* Only show avatars for Titular, Dependents don't need to see everyone's face here */}
+                                {!isDependent && (
+                                    <>
+                                        <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-ds-vinho flex items-center justify-center text-xs font-bold">
+                                            {client?.name.charAt(0)}
+                                        </div>
+                                        {client?.dependents.slice(0, 3).map((dep, i) => (
+                                            <div key={i} className="w-8 h-8 rounded-full bg-white/20 border-2 border-ds-vinho flex items-center justify-center text-xs font-bold">
+                                                {dep.name.charAt(0)}
+                                            </div>
+                                        ))}
+                                        {client?.dependents && client.dependents.length > 3 && (
+                                            <div className="w-8 h-8 rounded-full bg-ds-dourado border-2 border-ds-vinho flex items-center justify-center text-xs font-bold text-ds-vinho">
+                                                +{client.dependents.length - 3}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => setActiveTab('cards')}
+                                className="text-sm bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                <CardIcon /> Ver Carteirinha
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Quick Actions Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <QuickAction 
-                    title="Guia Médico" 
-                    subtitle="Encontre especialistas" 
-                    icon={<StethoscopeIcon />} 
-                    colorClass="bg-blue-500"
-                    onClick={() => setActiveTab('doctors')}
-                />
-                <QuickAction 
-                    title="Faturas" 
-                    subtitle="2ª via e histórico" 
-                    icon={<PaymentIcon />} 
-                    colorClass="bg-green-500"
-                    onClick={() => setActiveTab('payments')}
-                />
-                <QuickAction 
-                    title="Dependentes" 
-                    subtitle="Gerenciar família" 
-                    icon={<UsersIcon />} 
-                    colorClass="bg-purple-500"
-                    onClick={() => setActiveTab('dependents')}
-                />
-                <QuickAction 
-                    title="Suporte" 
-                    subtitle="Fale no WhatsApp" 
-                    icon={<WhatsAppIcon />} 
-                    colorClass="bg-[#25D366]"
-                    onClick={() => window.open('https://wa.me/5553991560861', '_blank')}
-                />
-            </div>
-
-            {/* Promo Banner */}
-            <div className="bg-gradient-to-r from-ds-dourado to-yellow-500 rounded-xl p-4 shadow-md text-ds-vinho flex items-center justify-between">
-                <div>
-                    <h4 className="font-bold text-lg">Economize Energia! ⚡</h4>
-                    <p className="text-sm opacity-90">Clientes Descont'Saúde têm até 30% de desconto na conta de luz.</p>
+                {/* Quick Actions Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <QuickAction 
+                        title="Guia Médico" 
+                        subtitle="Encontre especialistas" 
+                        icon={<StethoscopeIcon />} 
+                        colorClass="bg-blue-500"
+                        onClick={() => setActiveTab('doctors')}
+                    />
+                    {!isDependent && (
+                        <>
+                            <QuickAction 
+                                title="Faturas" 
+                                subtitle="2ª via e histórico" 
+                                icon={<PaymentIcon />} 
+                                colorClass="bg-green-500"
+                                onClick={() => setActiveTab('payments')}
+                            />
+                            <QuickAction 
+                                title="Dependentes" 
+                                subtitle="Gerenciar família" 
+                                icon={<UsersIcon />} 
+                                colorClass="bg-purple-500"
+                                onClick={() => setActiveTab('dependents')}
+                            />
+                        </>
+                    )}
+                    {isDependent && (
+                         <QuickAction 
+                            title="Avaliar" 
+                            subtitle="Avalie seu atendimento" 
+                            icon={<StarIcon />} 
+                            colorClass="bg-yellow-500"
+                            onClick={() => setActiveTab('rating')}
+                        />
+                    )}
+                    <QuickAction 
+                        title="Suporte" 
+                        subtitle="Fale no WhatsApp" 
+                        icon={<WhatsAppIcon />} 
+                        colorClass="bg-[#25D366]"
+                        onClick={() => window.open('https://wa.me/5553991560861', '_blank')}
+                    />
                 </div>
-                <button onClick={() => window.open('https://wa.me/5553991560861?text=Quero%20saber%20sobre%20o%20desconto%20de%20energia', '_blank')} className="bg-white/20 hover:bg-white/30 text-ds-vinho font-bold py-2 px-4 rounded-lg text-sm whitespace-nowrap ml-2">
-                    Saiba Mais
-                </button>
+
+                {/* Promo Banner */}
+                <div className="bg-gradient-to-r from-ds-dourado to-yellow-500 rounded-xl p-4 shadow-md text-ds-vinho flex items-center justify-between">
+                    <div>
+                        <h4 className="font-bold text-lg">Economize Energia! ⚡</h4>
+                        <p className="text-sm opacity-90">Clientes Descont'Saúde têm até 30% de desconto na conta de luz.</p>
+                    </div>
+                    <button onClick={() => window.open('https://wa.me/5553991560861?text=Quero%20saber%20sobre%20o%20desconto%20de%20energia', '_blank')} className="bg-white/20 hover:bg-white/30 text-ds-vinho font-bold py-2 px-4 rounded-lg text-sm whitespace-nowrap ml-2">
+                        Saiba Mais
+                    </button>
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
 
     const renderContent = () => {
         if (loading || !client) return <div className="flex justify-center py-20"><Spinner /></div>;
 
         switch (activeTab) {
             case 'home': return renderHome();
-            case 'payments': return <PaymentHistory client={client} />;
-            case 'dependents': return <DependentsManager client={client} />;
+            case 'payments': return !isDependent ? <PaymentHistory client={client} /> : null;
+            case 'dependents': return !isDependent ? <DependentsManager client={client} /> : null;
             case 'doctors': return <DoctorList />;
             case 'rating': return <DoctorRating clientId={client.id} />;
             case 'history': return <ServiceHistory clientId={client.id} />;
-            case 'profile': return <Profile client={client} />;
-            case 'cards': return <DigitalCards client={client} />;
+            case 'profile': return <Profile client={client} />; // Profile handles dependent logic internally now
+            case 'cards': return <DigitalCards client={client} />; // Cards handles dependent logic internally now
             default: return null;
         }
     };
@@ -205,9 +253,9 @@ const ClientDashboard: React.FC = () => {
                         <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
                            <TabButton tab="home" label="Início" icon={<HomeIcon />} />
                            <TabButton tab="cards" label="Carteira" icon={<CardIcon />} />
-                           <TabButton tab="payments" label="Faturas" icon={<PaymentIcon />} />
+                           {!isDependent && <TabButton tab="payments" label="Faturas" icon={<PaymentIcon />} />}
                            <TabButton tab="doctors" label="Rede" icon={<StethoscopeIcon />} />
-                           <TabButton tab="dependents" label="Família" icon={<UsersIcon />} />
+                           {!isDependent && <TabButton tab="dependents" label="Família" icon={<UsersIcon />} />}
                            <TabButton tab="rating" label="Avaliar" icon={<StarIcon />} />
                            <TabButton tab="profile" label="Perfil" icon={<ProfileIcon />} />
                         </div>

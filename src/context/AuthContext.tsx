@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import type { User } from '../types';
 import { MOCK_USERS } from '../services/mockData';
@@ -40,13 +41,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return null;
     }
 
-    // Client Login Path
+    // Client/Dependent Login Path
     const normalizedIdentifier = identifier.replace(/\D/g, '');
-    const foundUser = MOCK_USERS.find(
-      u => u.role === 'client' && (u.cpf.replace(/\D/g, '') === normalizedIdentifier || u.phone.replace(/\D/g, '') === normalizedIdentifier)
-    );
     
-    // NEW: Client password is the last 4 digits of their CPF
+    // Find user (client or dependent) by CPF or Phone (for clients)
+    const foundUser = MOCK_USERS.find(u => {
+        if (u.role === 'admin' || u.role === 'entregador') return false;
+        
+        const cleanCpf = u.cpf.replace(/\D/g, '');
+        const cleanPhone = u.phone.replace(/\D/g, '');
+        
+        return cleanCpf === normalizedIdentifier || cleanPhone === normalizedIdentifier;
+    });
+    
+    // Check password (last 4 digits of CPF)
     if (foundUser) {
         const expectedPassword = foundUser.cpf.replace(/\D/g, '').slice(-4);
         if (pass === expectedPassword) {

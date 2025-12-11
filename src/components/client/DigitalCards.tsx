@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { Client, Dependent } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
 import IdCardView from '../admin/IdCardView';
@@ -15,13 +16,22 @@ interface DigitalCardsProps {
 type CardPerson = Client | Dependent;
 
 const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
+    const { user } = useAuth();
     const [selectedPerson, setSelectedPerson] = useState<CardPerson | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    const isDependent = user?.role === 'dependent';
+
     const cardholders = useMemo(() => {
+        // If logged in as dependent, only show their card
+        if (isDependent && user?.dependentId) {
+            const myCard = client.dependents.find(d => d.id === user.dependentId);
+            return myCard ? [myCard] : [];
+        }
+        // If titular, show self and active dependents
         const activeDependents = client.dependents.filter(d => d.status === 'active');
         return [client, ...activeDependents];
-    }, [client]);
+    }, [client, isDependent, user]);
 
     const handleGenerateCard = (person: CardPerson) => {
         setSelectedPerson(person);
@@ -82,8 +92,8 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
 
     return (
         <>
-            <Card title="Minha Carteira Digital">
-                <p className="text-sm text-gray-600 mb-6">Estes são seus cartões digitais ativos. Clique em um cartão para abrir, salvar ou compartilhar.</p>
+            <Card title={isDependent ? "Meu Cartão Digital" : "Minha Carteira Digital"}>
+                {!isDependent && <p className="text-sm text-gray-600 mb-6">Estes são seus cartões digitais ativos. Clique em um cartão para abrir, salvar ou compartilhar.</p>}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {cardholders.map(person => {
@@ -117,7 +127,7 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
                     })}
                 </div>
 
-                {cardholders.length === 1 && client.dependents.length > 0 && (
+                {!isDependent && cardholders.length === 1 && client.dependents.length > 0 && (
                     <p className="text-center text-gray-500 mt-6 text-sm bg-yellow-50 p-4 rounded-xl border border-yellow-100">
                         Você tem dependentes cadastrados, mas eles precisam ser aprovados pela administração para aparecerem aqui.
                     </p>
@@ -134,11 +144,6 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
                 
                 {/* Wrapper with padding for visual comfort in modal, inner div ID targets capture */}
                 <div className="flex justify-center items-center bg-gray-200 p-4 rounded-xl border border-gray-300">
-                    {/* 
-                       Added padding (p-4) to the capture wrapper ID. 
-                       This creates invisible breathing room around the card during capture, 
-                       preventing html2canvas from clipping shadows or text on the edges.
-                    */}
                     <div id="digital-card-to-capture" className="w-full max-w-[520px] p-4 bg-transparent flex justify-center">
                         {selectedPerson && (
                              <IdCardView

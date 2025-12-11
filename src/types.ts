@@ -15,8 +15,9 @@ export interface User {
   name: string;
   cpf: string;
   phone: string;
-  role: 'admin' | 'client' | 'entregador';
-  clientId?: string; // Only for clients
+  role: 'admin' | 'client' | 'entregador' | 'dependent';
+  clientId?: string; // Links to the main Client contract
+  dependentId?: string; // If the user is a dependent, links to their specific ID inside the client
 }
 
 export interface Dependent {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -28,6 +29,7 @@ const AppRoutes: React.FC = () => {
         switch (user.role) {
             case 'admin': return '/admin';
             case 'client': return '/client';
+            case 'dependent': return '/client'; // Dependents share the client dashboard but with restricted view
             case 'entregador': return '/entregador';
             default: return '/login';
         }
@@ -49,7 +51,7 @@ const AppRoutes: React.FC = () => {
 
             <Route 
                 path="/client" 
-                element={user?.role === 'client' ? <ClientDashboard /> : <Navigate to="/login" replace />} 
+                element={(user?.role === 'client' || user?.role === 'dependent') ? <ClientDashboard /> : <Navigate to="/login" replace />} 
             />
 
             <Route 
