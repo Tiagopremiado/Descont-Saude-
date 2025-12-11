@@ -41,11 +41,13 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
         setIsProcessing(true);
 
         try {
+            // Using slightly higher scale for quality, and ensure transparency
             const canvas = await html2canvas(cardElement, { 
                 scale: 3, 
                 useCORS: true, 
-                backgroundColor: null, // Transparent background for the canvas itself
-                logging: false
+                backgroundColor: null,
+                logging: false,
+                scrollY: 0
             });
             
             if (action === 'download') {
@@ -130,9 +132,14 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
                     </div>
                 )}
                 
-                {/* Wrapper with explicit background for visual contrast in modal, and ID for capture */}
+                {/* Wrapper with padding for visual comfort in modal, inner div ID targets capture */}
                 <div className="flex justify-center items-center bg-gray-200 p-4 rounded-xl border border-gray-300">
-                    <div id="digital-card-to-capture" className="shadow-2xl rounded-2xl overflow-hidden w-full max-w-[480px]">
+                    {/* 
+                       Added padding (p-4) to the capture wrapper ID. 
+                       This creates invisible breathing room around the card during capture, 
+                       preventing html2canvas from clipping shadows or text on the edges.
+                    */}
+                    <div id="digital-card-to-capture" className="w-full max-w-[520px] p-4 bg-transparent flex justify-center">
                         {selectedPerson && (
                              <IdCardView
                                 name={selectedPerson.name}

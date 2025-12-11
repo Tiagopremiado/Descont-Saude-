@@ -105,8 +105,8 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
                         )}
                     </div>
 
-                    {/* Name */}
-                    <h2 className="text-xl md:text-2xl font-medium text-white uppercase tracking-widest drop-shadow-md truncate w-full" style={{ fontFamily: '"Courier New", Courier, monospace', letterSpacing: '0.05em', textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+                    {/* Name - Adjusted tracking and padding to prevent clipping on export */}
+                    <h2 className="text-xl md:text-2xl font-medium text-white uppercase tracking-wider drop-shadow-md truncate w-full pr-2" style={{ fontFamily: '"Courier New", Courier, monospace', letterSpacing: '0.05em', textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
                         {name}
                     </h2>
                     
