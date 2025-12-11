@@ -5,9 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
 import IdCardView from '../admin/IdCardView';
-import Spinner from '../common/Spinner';
-
-declare const html2canvas: any;
 
 interface DigitalCardsProps {
   client: Client;
@@ -18,7 +15,6 @@ type CardPerson = Client | Dependent;
 const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
     const { user } = useAuth();
     const [selectedPerson, setSelectedPerson] = useState<CardPerson | null>(null);
-    const [isProcessing, setIsProcessing] = useState(false);
     const [isInactiveModalOpen, setIsInactiveModalOpen] = useState(false);
 
     const isDependent = user?.role === 'dependent';
@@ -59,58 +55,10 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
         setSelectedPerson(null);
     };
 
-    const processCardAction = async (action: 'download' | 'share') => {
-        const cardElement = document.getElementById('digital-card-to-capture');
-        if (!cardElement) {
-            alert('Erro: Não foi possível encontrar o elemento do cartão.');
-            return;
-        }
-        
-        setIsProcessing(true);
-
-        try {
-            const canvas = await html2canvas(cardElement, { 
-                scale: 3, 
-                useCORS: true, 
-                backgroundColor: null,
-                logging: false,
-                scrollY: 0
-            });
-            
-            if (action === 'download') {
-                const image = canvas.toDataURL('image/png', 1.0);
-                const link = document.createElement('a');
-                link.download = `cartao_${selectedPerson?.name.replace(/\s/g, '_')}.png`;
-                link.href = image;
-                link.click();
-            } else if (action === 'share') {
-                canvas.toBlob(async (blob) => {
-                    if (blob) {
-                        const file = new File([blob], `cartao_${selectedPerson?.name.replace(/\s/g, '_')}.png`, { type: 'image/png' });
-                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                            await navigator.share({
-                                files: [file],
-                                title: `Cartão Descont'Saúde - ${selectedPerson?.name}`,
-                                text: `Aqui está o cartão digital de ${selectedPerson?.name}.`
-                            });
-                        } else {
-                            alert("Seu navegador não suporta o compartilhamento de arquivos. Por favor, utilize a opção 'Baixar' e envie manualmente.");
-                        }
-                    }
-                }, 'image/png');
-            }
-        } catch (error) {
-            console.error('Erro ao processar o cartão:', error);
-            alert('Ocorreu um erro ao gerar o cartão. Por favor, tente novamente.');
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
     return (
         <>
             <Card title={isDependent ? "Meu Cartão Digital" : "Minha Carteira Digital"}>
-                {!isDependent && <p className="text-sm text-gray-600 mb-6">Estes são seus cartões digitais. Clique em um cartão para abrir.</p>}
+                {!isDependent && <p className="text-sm text-gray-600 mb-6">Estes são seus cartões digitais. Clique em um cartão para abrir e apresentar na rede credenciada.</p>}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {cardholders.map(person => {
@@ -164,15 +112,9 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
 
             {/* Modal de Cartão */}
             <Modal isOpen={!!selectedPerson} onClose={handleCloseModal} title={`Cartão de ${selectedPerson?.name.split(' ')[0]}`}>
-                {isProcessing && (
-                    <div className="absolute inset-0 bg-white/90 flex flex-col justify-center items-center z-50 rounded-xl">
-                        <Spinner />
-                        <p className="mt-2 text-ds-vinho font-semibold animate-pulse">Gerando imagem...</p>
-                    </div>
-                )}
                 
                 <div className="flex justify-center items-center bg-gray-200 p-4 rounded-xl border border-gray-300">
-                    <div id="digital-card-to-capture" className="w-full max-w-[520px] p-4 bg-transparent flex justify-center">
+                    <div className="w-full max-w-[520px] p-4 bg-transparent flex justify-center">
                         {selectedPerson && (
                              <IdCardView
                                 name={selectedPerson.name}
@@ -184,24 +126,20 @@ const DigitalCards: React.FC<DigitalCardsProps> = ({ client }) => {
                     </div>
                 </div>
 
-                 <div className="flex gap-3 pt-6">
+                <div className="mt-6 text-center bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                    <p className="text-sm text-yellow-800 font-medium">
+                        Este cartão é válido apenas mediante apresentação no aplicativo. 
+                        A captura de tela ou impressão não são aceitas.
+                    </p>
+                </div>
+
+                 <div className="flex justify-end pt-4">
                     <button 
                         type="button" 
-                        onClick={() => processCardAction('share')}
-                        className="flex-1 bg-green-500 text-white font-bold py-3 px-4 rounded-xl hover:bg-green-600 shadow-md transition-colors flex items-center justify-center gap-2"
-                        disabled={isProcessing}
+                        onClick={handleCloseModal}
+                        className="bg-ds-vinho text-white font-bold py-3 px-8 rounded-xl hover:bg-opacity-90 shadow-md transition-colors w-full sm:w-auto"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                        Compartilhar
-                    </button>
-                    <button 
-                        type="button" 
-                        onClick={() => processCardAction('download')}
-                        className="flex-1 bg-ds-vinho text-white font-bold py-3 px-4 rounded-xl hover:bg-opacity-90 shadow-md transition-colors flex items-center justify-center gap-2"
-                        disabled={isProcessing}
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        Salvar
+                        Fechar
                     </button>
                 </div>
             </Modal>
