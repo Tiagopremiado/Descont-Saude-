@@ -35,23 +35,23 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
             {/* Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#750721] via-[#5c0416] to-[#2b020a] z-0"></div>
 
-            {/* Geometric Patterns */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20 z-0" viewBox="0 0 480 302" preserveAspectRatio="none">
-                <g stroke="#D0AB6A" strokeWidth="1.5" fill="none">
-                    <path d="M480 40 L440 0" />
-                    <path d="M480 80 L400 0" />
-                    <path d="M480 120 L360 0" />
-                    <rect x="420" y="20" width="30" height="30" transform="rotate(45 435 35)" />
-                    <path d="M435 25 V45 M425 35 H445" strokeWidth="2" />
-                </g>
-                <g stroke="#D0AB6A" strokeWidth="1.5" fill="none">
-                    <path d="M0 260 L40 302" />
-                    <path d="M0 220 L80 302" />
-                    <path d="M0 180 L120 302" />
-                    <rect x="30" y="250" width="30" height="30" transform="rotate(45 45 265)" />
-                    <path d="M35 260 Q45 250 55 260 T75 260" transform="rotate(45 45 265)" strokeWidth="1" />
-                </g>
-            </svg>
+            {/* Geometric Patterns (Substituído SVG por DIVs para garantir o HTML2Canvas/Download) */}
+            <div className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden opacity-30">
+                {/* Linhas Superior Direita */}
+                <div className="absolute -top-10 -right-10 w-64 h-64 border-b-2 border-[#D0AB6A] transform -rotate-45"></div>
+                <div className="absolute -top-6 -right-6 w-64 h-64 border-b border-[#D0AB6A] transform -rotate-45 opacity-50"></div>
+                
+                {/* Detalhe Quadrado Superior */}
+                <div className="absolute top-8 right-12 w-4 h-4 border border-[#D0AB6A] transform rotate-45 opacity-60"></div>
+
+                {/* Linhas Inferior Esquerda */}
+                <div className="absolute -bottom-10 -left-10 w-64 h-64 border-t-2 border-[#D0AB6A] transform -rotate-45"></div>
+                <div className="absolute -bottom-6 -left-6 w-64 h-64 border-t border-[#D0AB6A] transform -rotate-45 opacity-50"></div>
+                <div className="absolute -bottom-16 -left-4 w-64 h-64 border-t border-[#D0AB6A] transform -rotate-45 opacity-30"></div>
+
+                {/* Detalhe Curvo Inferior (Simulado com borda arredondada) */}
+                <div className="absolute bottom-10 left-10 w-16 h-16 border-l-2 border-b-2 border-[#D0AB6A] rounded-bl-full opacity-40"></div>
+            </div>
 
             {/* Logo Section */}
             <div className="absolute top-5 left-5 md:top-6 md:left-6 flex items-center gap-3 z-10">
@@ -89,7 +89,7 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
             </div>
 
             {/* Chip - Ajustado para ser menor */}
-            <div className={`absolute ${isZoomed ? 'top-28 left-10 w-14 h-10' : 'top-20 left-6 w-10 h-7'} bg-gradient-to-tr from-[#e0c388] to-[#bfa065] rounded opacity-90 border border-[#917646] hidden sm:block z-10 transition-all`}>
+            <div className={`absolute ${isZoomed ? 'top-28 left-10 w-14 h-10' : 'top-20 left-6 w-10 h-7'} bg-gradient-to-tr from-[#e0c388] to-[#bfa065] rounded opacity-90 border border-[#917646] hidden sm:block z-10 transition-all shadow-sm`}>
                 <div className="w-full h-full relative opacity-50">
                     <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black"></div>
                     <div className="absolute top-0 left-1/2 w-[1px] h-full bg-black"></div>
@@ -100,9 +100,12 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
             {/* Content Body - Subido um pouco para dar espaço */}
             <div className={`absolute ${isZoomed ? 'bottom-8 left-10 right-10' : 'bottom-6 left-6 right-6'} z-10 transition-all`}>
                 <div className="flex flex-col">
-                    {/* Role Label */}
+                    {/* Role Label - Borda removida, Sombreado adicionado */}
                     <div className={`flex items-center gap-2 ${isZoomed ? 'mb-3' : 'mb-1.5'}`}>
-                        <span className={`inline-flex items-center justify-center ${isZoomed ? 'text-xs px-3 py-1' : 'text-[8px] px-2 py-0.5'} font-bold text-[#D0AB6A] uppercase tracking-[0.1em] border border-[#D0AB6A] rounded shadow-sm bg-[#5c0416]/80 backdrop-blur-sm transition-all`}>
+                        <span 
+                            className={`inline-flex items-center justify-center ${isZoomed ? 'text-xs px-3 py-1' : 'text-[8px] px-2 py-0.5'} font-bold text-[#D0AB6A] uppercase tracking-[0.1em] rounded shadow-lg bg-[#3a020d]/60 backdrop-blur-sm transition-all`}
+                            style={{ textShadow: '0px 1px 2px rgba(0,0,0,0.8)' }} 
+                        >
                             {role}
                         </span>
                         {role === 'DEPENDENTE' && holderName && (
