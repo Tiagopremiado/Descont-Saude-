@@ -123,20 +123,18 @@ const AdminDashboard: React.FC = () => {
         link.click();
     };
 
-    // Função para exportar dados LIMPOS para o Desenvolvedor atualizar o código fonte
+    // Função CRÍTICA: Exportar dados para o Desenvolvedor
     const handleExportSystemData = () => {
-        // Seleciona apenas os dados que devem ser persistentes no código
+        // Seleciona apenas os dados estruturais (Clientes e Médicos)
         const systemData = {
             clients,
             doctors,
-            // Payments e reminders geralmente são dinâmicos e ficam no backup local/drive,
-            // mas se você quiser "resetar" o sistema com pagamentos atuais, eles podem ir.
-            // Para "atualização cadastral" e "lista de médicos", focamos nesses dois.
         };
         
         const jsonString = JSON.stringify(systemData, null, 2);
         const blob = new Blob([jsonString], { type: "application/json" });
-        const file = new File([blob], `dados_sistema_master_${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
+        // Nome padrão para facilitar a identificação
+        const file = new File([blob], `sistema_completo_para_dev.json`, { type: "application/json" });
 
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -147,10 +145,10 @@ const AdminDashboard: React.FC = () => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        // Opcional: Limpar o estado de "Dirty" após baixar para o dev, se desejar
-        // setDirty(false); 
-        
-        alert("Arquivo 'dados_sistema_master.json' baixado!\n\nEnvie este arquivo para o desenvolvedor para que os Médicos e Clientes sejam atualizados definitivamente no código do sistema.");
+        // Limpar o estado de "sujo" (Dirty) pois o admin acabou de "salvar" baixando o arquivo
+        if (window.confirm("Arquivo baixado com sucesso! \n\nAgora envie este arquivo para o Desenvolvedor atualizar o sistema. \n\nDeseja marcar as alterações como 'Salvas' no navegador?")) {
+            setDirty(false);
+        }
     };
 
     // New Function: Send Route to Entregador
@@ -378,17 +376,17 @@ const AdminDashboard: React.FC = () => {
                                 {isSavingToDrive ? 'Salvando...' : 'Salvar'}
                             </button>
                             
-                            {/* Botão de Exportação para o Desenvolvedor - ATUALIZADO COM EFEITO PULSANTE */}
+                            {/* Botão de Exportação para o Desenvolvedor - ATUALIZADO */}
                             <button
                                 onClick={handleExportSystemData}
                                 className={`flex items-center font-bold py-2 px-4 rounded-full transition-all text-sm duration-300 transform ${
                                     isDirty 
-                                    ? 'bg-orange-600 hover:bg-orange-700 text-white animate-pulse ring-4 ring-orange-300 hover:scale-105' 
+                                    ? 'bg-orange-600 hover:bg-orange-700 text-white animate-pulse ring-4 ring-orange-300 hover:scale-105 shadow-xl' 
                                     : 'bg-indigo-600 hover:bg-indigo-700 text-white'
                                 }`}
                                 title={isDirty 
                                     ? "EXISTEM ALTERAÇÕES NÃO SALVAS! Baixe este arquivo e envie ao desenvolvedor." 
-                                    : "Baixar dados atuais (Médicos/Clientes) para atualizar o código fonte do sistema"}
+                                    : "Baixar dados atuais para atualizar o código fonte do sistema"}
                             >
                                 <CodeIcon /> 
                                 {isDirty ? 'SALVAR ALTERAÇÕES (DEV)' : 'Baixar Dados para o Desenvolvedor'}

@@ -3,7 +3,7 @@ import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminde
 import { GOOGLE_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_DRIVE_SCOPE } from '../config';
 
 // Atualize esta versão para forçar o recarregamento dos dados no navegador dos usuários
-const DATA_VERSION = '2025-11-04-BACKUP-RESTORED-V5'; 
+const DATA_VERSION = '2025-11-04-BACKUP-RESTORED-V6'; 
 
 const BACKUP_STORAGE_KEY = 'descontsaude_backup_data';
 const VERSION_STORAGE_KEY = 'descontsaude_data_version';
@@ -18,7 +18,16 @@ export const DEFAULT_PLAN_CONFIG: PlanConfig = {
     extraDependentPrice: 10.00
 };
 
+// -------------------------------------------------------------------------
+// ÁREA DO DESENVOLVEDOR - IMPORTAÇÃO DE DADOS
+// -------------------------------------------------------------------------
+// Instrução: Para atualizar os dados definitivos do sistema,
+// substitua o conteúdo das variáveis MOCK_CLIENTS e MOCK_DOCTORS abaixo
+// com o conteúdo do arquivo 'sistema_completo_para_dev.json' gerado pelo Admin.
+// -------------------------------------------------------------------------
+
 const parseDependents = (clientData: any): any[] => {
+    // Legacy parser for raw imports. Not used if MOCK_CLIENTS is fully populated.
     const dependents = [];
     for (let i = 1; i <= 6; i++) {
         const field = `Campos Personalizado ${i}`;
@@ -31,8 +40,6 @@ const parseDependents = (clientData: any): any[] => {
 
                 const nameMatch = namePart;
                 const dateMatch = infoPart.match(/(\d{2}\/\d{2}\/\d{4})/);
-                
-                // Regex melhorada para pegar CPFs com ou sem formatação, mesmo no meio de texto
                 const cpfMatch = infoPart.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})|(\d{11})/);
 
                 if (nameMatch) {
@@ -53,14 +60,14 @@ const parseDependents = (clientData: any): any[] => {
     return dependents;
 };
 
+// Legacy Raw Data (Used for initial seed, can be kept or cleared if full MOCK_CLIENTS is provided)
 const rawClients = [
  { "Código": "03FB445E36404F0EBD3A5FE7DE3C5331", "Nome": "Maria Helena Magalhães", "E-mail": "descontsaudesuport@gmail.com", "CPF/CNPJ": "20703660063", "CEP": "96360000", "Endereço": "Bento Gonçalves", "Número": "39", "Bairro": "RS", "Cidade": "Pedro Osório", "Estado": "RS", "DDD": "53", "Telefone": "981229291" },
- { "Código": "04512F1916B1488BA515949A38079309", "Nome": "Josiane Gonçalves Rodrigues", "E-mail": "descontsaudesuport@gmail.com", "CPF/CNPJ": "00642689008", "CEP": "96360000", "Endereço": "Whatsapp Descont' saúde ", "Número": "53991560861", "Bairro": "A", "Cidade": "Pedro Osório", "Estado": "RS", "DDD": "53", "Telefone": "530000000", "Campos Personalizado 1": "JARDEL BRAGA FELIX : 20/08/1985" },
- // ... (rest of the clients would be here in a real scenario, keeping truncated for brevity as per instructions)
+ // ... data truncated for brevity ...
 ];
 
-// Helper to ensure we have data even if rawClients is truncated in this view
-// In production, rawClients contains all data.
+// --- DADOS DOS CLIENTES ---
+// Substitua esta inicialização se tiver um JSON completo exportado
 export let MOCK_CLIENTS: Client[] = rawClients.map((c: any, index: number) => ({
   id: c['Código'] || c['id'] || `client${index}`,
   contractNumber: c['contractNumber'] || `019${String(c['CPF/CNPJ'] || '').replace(/\D/g, '').slice(-8) || String(Date.now() + index).slice(-8)}`,
@@ -88,6 +95,7 @@ export let MOCK_CLIENTS: Client[] = rawClients.map((c: any, index: number) => ({
   logs: c['logs'] || []
 }));
 
+// --- DADOS DOS MÉDICOS ---
 export let MOCK_DOCTORS: Doctor[] = [
   // ... (Doctors list remains unchanged) ...
   { id: 'doc1', name: 'Consultório Odontológico Aline Dias', specialty: 'Dentista', address: 'Rua Alberto Santos Dumont, 1610', city: 'Pedro Osório', phone: '(53) 99966-2292' },
@@ -124,8 +132,6 @@ const generateMockUsers = () => {
         // Create users for DEPENDENTS
         if (client.dependents) {
             client.dependents.forEach(dep => {
-                // Ensure we only create users for dependents with somewhat valid CPFs (not empty/default)
-                // We strip non-digits to check if it's just zeros
                 const cleanCpf = dep.cpf.replace(/\D/g, '');
                 if (cleanCpf && cleanCpf !== '00000000000') {
                     MOCK_USERS.push({
