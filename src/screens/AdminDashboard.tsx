@@ -147,6 +147,9 @@ const AdminDashboard: React.FC = () => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
+        // Opcional: Limpar o estado de "Dirty" após baixar para o dev, se desejar
+        // setDirty(false); 
+        
         alert("Arquivo 'dados_sistema_master.json' baixado!\n\nEnvie este arquivo para o desenvolvedor para que os Médicos e Clientes sejam atualizados definitivamente no código do sistema.");
     };
 
@@ -375,13 +378,20 @@ const AdminDashboard: React.FC = () => {
                                 {isSavingToDrive ? 'Salvando...' : 'Salvar'}
                             </button>
                             
-                            {/* Botão de Exportação para o Desenvolvedor */}
+                            {/* Botão de Exportação para o Desenvolvedor - ATUALIZADO COM EFEITO PULSANTE */}
                             <button
                                 onClick={handleExportSystemData}
-                                className="flex items-center bg-indigo-600 text-white font-bold py-2 px-4 rounded-full hover:bg-indigo-700 transition-colors text-sm"
-                                title="Baixar dados atuais (Médicos/Clientes) para atualizar o código fonte do sistema"
+                                className={`flex items-center font-bold py-2 px-4 rounded-full transition-all text-sm duration-300 transform ${
+                                    isDirty 
+                                    ? 'bg-orange-600 hover:bg-orange-700 text-white animate-pulse ring-4 ring-orange-300 hover:scale-105' 
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                }`}
+                                title={isDirty 
+                                    ? "EXISTEM ALTERAÇÕES NÃO SALVAS! Baixe este arquivo e envie ao desenvolvedor." 
+                                    : "Baixar dados atuais (Médicos/Clientes) para atualizar o código fonte do sistema"}
                             >
-                                <CodeIcon /> Baixar Dados para o Desenvolvedor
+                                <CodeIcon /> 
+                                {isDirty ? 'SALVAR ALTERAÇÕES (DEV)' : 'Baixar Dados para o Desenvolvedor'}
                             </button>
 
                             <button onClick={() => setIsPlanConfigOpen(true)} className="flex items-center bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-80 transition-colors text-sm">
