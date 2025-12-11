@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import type { User } from '../types';
-import { MOCK_USERS } from '../services/mockData';
+import { MOCK_USERS, MOCK_CLIENTS } from '../services/mockData';
 
 interface AuthContextType {
   user: User | null;
@@ -44,8 +44,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Client/Dependent Login Path
     const normalizedIdentifier = identifier.replace(/\D/g, '');
     
-    // Find user (client or dependent) by CPF or Phone (for clients)
-    const foundUser = MOCK_USERS.find(u => {
+    // 1. Try to find in the pre-generated MOCK_USERS list
+    let foundUser = MOCK_USERS.find(u => {
         if (u.role === 'admin' || u.role === 'entregador') return false;
         
         const cleanCpf = u.cpf.replace(/\D/g, '');
@@ -53,10 +53,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         return cleanCpf === normalizedIdentifier || cleanPhone === normalizedIdentifier;
     });
+
+    // 2. Fallback: If not found in MOCK_USERS (maybe dependent wasn't generated correctly), search deep in Clients
+    if (!foundUser) {
+        for (const client of MOCK_CLIENTS) {
+            // Check Dependents
+            if (client.dependents) {
+                const dependent = client.dependents.find(d => d.cpf.replace(/\D/g, '') === normalizedIdentifier);
+                if (dependent) {
+                    foundUser = {
+                        id: `user-dep-${dependent.id}`,
+                        name: dependent.name,
+                        cpf: dependent.cpf,
+                        phone: client.phone,
+                        role: 'dependent',
+                        clientId: client.id,
+                        dependentId: dependent.id
+                    };
+                    break;
+                }
+            }
+        }
+    }
     
     // Check password (last 4 digits of CPF)
     if (foundUser) {
         const expectedPassword = foundUser.cpf.replace(/\D/g, '').slice(-4);
+        
+        // Log para depuração (útil para desenvolvimento)
+        console.log(`Checking password for ${foundUser.name}. Expected (last 4 CPF): ${expectedPassword}`);
+
         if (pass === expectedPassword) {
             setUser(foundUser);
             return foundUser;
