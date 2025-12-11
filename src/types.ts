@@ -3,7 +3,7 @@
 
 export interface ActivityLog {
   id: string;
-  action: 'create' | 'update' | 'status_change' | 'dependent_action' | 'password_reset' | 'delivery_request';
+  action: 'create' | 'update' | 'status_change' | 'dependent_action' | 'password_reset' | 'delivery_request' | 'delivery_attempt';
   description: string;
   details?: string[]; // Array of specific changes (e.g. "Name: Old -> New")
   timestamp: string; // ISO String
@@ -116,9 +116,10 @@ export interface UpdateApprovalRequest {
     clientName: string;
     requestedAt: string; // ISO string
     status: 'pending' | 'approved' | 'rejected';
-    requestType: 'update' | 'cancellation' | 'new_dependent' | 'card_request'; 
+    requestType: 'update' | 'cancellation' | 'new_dependent' | 'card_request' | 'delivery_failed'; 
     cancellationReason?: string;
-    deliveryNote?: string; // New field for courier observations
+    deliveryNote?: string; // Courier observations
+    signature?: string; // Base64 signature image
     
     // Data for contact/address updates
     updates: {

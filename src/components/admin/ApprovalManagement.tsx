@@ -51,6 +51,19 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
 
     const renderRequestContent = (req: UpdateApprovalRequest) => {
         switch (req.requestType) {
+            case 'delivery_failed':
+                return (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-md">
+                        <div className="flex items-start gap-3">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                             <div>
+                                <p className="font-bold text-orange-800 mb-1">Tentativa de Entrega Falhou</p>
+                                <p className="text-gray-800 italic">"{req.deliveryNote || 'Ausente / Não encontrado'}"</p>
+                                <p className="text-xs text-gray-500 mt-3">Atenção: Ao aprovar, o status de entrega do cliente será mantido como <strong>PENDENTE</strong> para a próxima rota, mas o registro ficará no histórico.</p>
+                             </div>
+                        </div>
+                    </div>
+                );
             case 'cancellation':
                 return (
                     <div className="p-4 bg-white border border-red-200 rounded-md">
@@ -149,7 +162,7 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                 <div className="space-y-4">
                     {filteredRequests.length === 0 && <p className="text-center text-gray-500 py-8">Nenhuma solicitação encontrada para este filtro.</p>}
                     {filteredRequests.map(req => (
-                        <div key={req.id} className={`bg-white border rounded-lg shadow-sm ${req.requestType === 'cancellation' ? 'border-red-300 bg-red-50' : ''}`}>
+                        <div key={req.id} className={`bg-white border rounded-lg shadow-sm ${req.requestType === 'cancellation' ? 'border-red-300 bg-red-50' : req.requestType === 'delivery_failed' ? 'border-orange-300 bg-orange-50' : ''}`}>
                             <header className="flex justify-between items-center p-4 bg-gray-50/50 rounded-t-lg border-b">
                                 <div>
                                     <div className="flex items-center gap-2">
@@ -157,6 +170,11 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                                         {req.requestType === 'cancellation' && (
                                             <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-600 text-white animate-pulse">
                                                 CANCELAMENTO
+                                            </span>
+                                        )}
+                                        {req.requestType === 'delivery_failed' && (
+                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-orange-600 text-white">
+                                                FALHA NA ENTREGA
                                             </span>
                                         )}
                                         {req.requestType === 'new_dependent' && (
@@ -180,12 +198,20 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                             <div className="p-4">
                                 {renderRequestContent(req)}
                                 
-                                {req.deliveryNote && (
-                                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                                        <p className="text-xs font-bold text-yellow-800 uppercase mb-1">Observação do Entregador:</p>
-                                        <p className="text-gray-800 text-sm whitespace-pre-line">{req.deliveryNote}</p>
-                                    </div>
-                                )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                    {req.deliveryNote && req.requestType !== 'delivery_failed' && (
+                                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                            <p className="text-xs font-bold text-yellow-800 uppercase mb-1">Observação do Entregador:</p>
+                                            <p className="text-gray-800 text-sm whitespace-pre-line">{req.deliveryNote}</p>
+                                        </div>
+                                    )}
+                                    {req.signature && (
+                                         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                                            <p className="text-xs font-bold text-gray-500 uppercase mb-1">Assinatura do Recebedor:</p>
+                                            <img src={req.signature} alt="Assinatura" className="h-16 w-auto border border-gray-300 bg-white rounded" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {req.status === 'pending' && (
@@ -203,7 +229,7 @@ const ApprovalManagement: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) =>
                                         disabled={!!actionLoading}
                                         className={`${req.requestType === 'cancellation' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-2 px-4 rounded-full transition-colors disabled:opacity-50`}
                                     >
-                                        {req.requestType === 'cancellation' ? 'Confirmar Cancelamento' : 'Aprovar Solicitação'}
+                                        {req.requestType === 'cancellation' ? 'Confirmar Cancelamento' : req.requestType === 'delivery_failed' ? 'Ciência' : 'Aprovar Solicitação'}
                                     </button>
                                 </footer>
                             )}

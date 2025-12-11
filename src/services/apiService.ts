@@ -470,7 +470,8 @@ export const submitUpdateRequest = async (
     updates: UpdateApprovalRequest['updates'],
     requestType: UpdateApprovalRequest['requestType'] = 'update',
     payload?: string | UpdateApprovalRequest['newDependentData'] | UpdateApprovalRequest['cardRequestData'],
-    deliveryNote?: string // Optional delivery note
+    deliveryNote?: string, // Optional delivery note
+    signature?: string // Optional signature (base64)
 ): Promise<UpdateApprovalRequest> => {
     await apiDelay(700);
     const client = MOCK_CLIENTS.find(c => c.id === clientId);
@@ -485,11 +486,13 @@ export const submitUpdateRequest = async (
         requestType,
         currentData,
         updates,
-        deliveryNote // Store the note in the request
+        deliveryNote,
+        signature // Add signature to request
     };
 
-    if (requestType === 'cancellation' && typeof payload === 'string') {
-        newRequest.cancellationReason = payload;
+    if ((requestType === 'cancellation' || requestType === 'delivery_failed') && typeof payload === 'string') {
+        // payload acts as cancellation reason OR delivery failure reason
+        if(requestType === 'cancellation') newRequest.cancellationReason = payload;
     } else if (requestType === 'new_dependent') {
         newRequest.newDependentData = payload as UpdateApprovalRequest['newDependentData'];
     } else if (requestType === 'card_request') {
@@ -529,12 +532,23 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
         MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
         MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', `Observação do Entregador: ${request.deliveryNote}`));
     }
+    
+    // Add log if signature present (Proof of visit)
+    if (request.signature) {
+        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', `Visita confirmada com assinatura digital.`));
+    }
 
     if (request.requestType === 'cancellation') {
         MOCK_CLIENTS[clientIndex].status = 'inactive';
         MOCK_CLIENTS[clientIndex].annotations += `\n[CANCELAMENTO] Solicitado em ${new Date(request.requestedAt).toLocaleDateString()}. Motivo: ${request.cancellationReason || 'Não informado'}. Aprovado em ${new Date().toLocaleDateString()}.`;
         MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
         MOCK_CLIENTS[clientIndex].logs.unshift(createLog('status_change', 'Cliente CANCELADO (Solicitação do Entregador aprovada)'));
+    } else if (request.requestType === 'delivery_failed') {
+        // Delivery failed logic
+        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
+        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_attempt', `Tentativa de entrega falhou: Ausente/Não Encontrado`));
+        // Important: We do NOT clear the deliveryStatus.pending flag here, so it remains in the route for next time.
     } else if (request.requestType === 'new_dependent') {
         if (request.newDependentData) {
             MOCK_CLIENTS[clientIndex].dependents.push({
@@ -568,6 +582,11 @@ export const approveUpdateRequest = async (requestId: string): Promise<Client | 
         if(changes.length > 0) {
              MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', 'Dados atualizados via solicitação do entregador', changes));
         }
+    }
+    
+    // Clear delivery status if update was successful/confirmed (ONLY if it wasn't a failed attempt)
+    if (request.requestType !== 'delivery_failed' && MOCK_CLIENTS[clientIndex].deliveryStatus?.pending) {
+        MOCK_CLIENTS[clientIndex].deliveryStatus = undefined;
     }
     
     MOCK_UPDATE_REQUESTS[requestIndex].status = 'approved';

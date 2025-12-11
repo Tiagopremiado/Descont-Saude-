@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Header from '../components/Header';
 import ClientManagement from '../components/admin/ClientManagement';
@@ -11,6 +12,7 @@ import SaveChangesModal from '../components/admin/SaveChangesModal';
 import ApprovalManagement from '../components/admin/ApprovalManagement';
 import PlanConfigModal from '../components/admin/PlanConfigModal'; 
 import CourierFinance from '../components/admin/CourierFinance'; 
+import AdminHome from '../components/admin/AdminHome';
 import { setBackupData, resetData, saveBackupToDrive, syncFromDrive, isGoogleApiInitialized, mergeUpdateRequests } from '../services/mockData';
 import { useData } from '../context/DataContext'; 
 import { useAuth } from '../context/AuthContext'; 
@@ -23,7 +25,7 @@ declare global {
     }
 }
 
-type AdminTab = 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 'carnet' | 'approvals' | 'courier_finance';
+type AdminTab = 'home' | 'clients' | 'payments' | 'doctors' | 'reminders' | 'invoices' | 'carnet' | 'approvals' | 'courier_finance';
 
 interface SyncStatus {
     message: string;
@@ -55,7 +57,7 @@ const AdminDashboard: React.FC = () => {
     const { clients, doctors, payments, reminders, isLoadingData, reloadData, isDirty, setDirty, syncStatus, setSyncStatus, updateRequests } = useData();
     const { logout } = useAuth(); 
     
-    const [activeTab, setActiveTab] = useState<AdminTab>('clients');
+    const [activeTab, setActiveTab] = useState<AdminTab>('home');
     const [filterPending, setFilterPending] = useState(false);
     const [generatedClient, setGeneratedClient] = useState<Client | null>(null);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -300,6 +302,8 @@ const AdminDashboard: React.FC = () => {
     
     const renderContent = () => {
         switch (activeTab) {
+            case 'home':
+                return <AdminHome />;
             case 'clients':
                 return <ClientManagement 
                             initialClients={clients} 
@@ -318,7 +322,7 @@ const AdminDashboard: React.FC = () => {
             case 'invoices': return <InvoiceGeneration />;
             case 'carnet': return <CarnetGeneration clients={clients} onUpdate={handleDataUpdate} />;
             case 'courier_finance': return <CourierFinance onUpdate={handleDataUpdate} />;
-            default: return null;
+            default: return <AdminHome />;
         }
     };
     
@@ -404,6 +408,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
                     <div className="border-b border-gray-300 mb-6">
                         <nav className="-mb-px flex space-x-4 overflow-x-auto pb-px">
+                            <TabButton tab="home" label="Visão Geral" />
                             <TabButton tab="clients" label="Gerenciar Clientes" count={pendingClientItemsCount} />
                             <TabButton tab="approvals" label="Aprovações" count={pendingApprovalCount} />
                             <TabButton tab="courier_finance" label="Pagamentos Entregador" />
