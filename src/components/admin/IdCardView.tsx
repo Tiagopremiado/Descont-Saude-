@@ -93,9 +93,9 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
             {/* Content Body */}
             <div className="absolute bottom-6 left-6 right-6 md:bottom-8 md:left-8 md:right-8 z-10">
                 <div className="flex flex-col">
-                    {/* Role Label */}
+                    {/* Role Label - Ajustado padding para evitar corte do texto */}
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] font-bold text-[#D0AB6A] uppercase tracking-[0.15em] border border-[#D0AB6A] px-2 py-0.5 rounded shadow-sm bg-[#5c0416]/80 backdrop-blur-sm">
+                        <span className="inline-flex items-center justify-center text-[10px] font-bold text-[#D0AB6A] uppercase tracking-[0.15em] border border-[#D0AB6A] px-3 py-1 rounded shadow-sm bg-[#5c0416]/80 backdrop-blur-sm">
                             {role}
                         </span>
                         {role === 'DEPENDENTE' && holderName && (
@@ -105,12 +105,12 @@ const IdCardView: React.FC<IdCardViewProps> = ({ name = '', role = 'TITULAR', ca
                         )}
                     </div>
 
-                    {/* Name - Adjusted tracking and padding to prevent clipping on export */}
-                    <h2 className="text-xl md:text-2xl font-medium text-white uppercase tracking-wider drop-shadow-md truncate w-full pr-2" style={{ fontFamily: '"Courier New", Courier, monospace', letterSpacing: '0.05em', textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+                    {/* Name - Adicionado padding-bottom (pb-2) e line-height (leading-relaxed) para evitar corte na base das letras */}
+                    <h2 className="text-xl md:text-2xl font-medium text-white uppercase tracking-wider drop-shadow-md whitespace-nowrap overflow-hidden pb-2 leading-relaxed" style={{ fontFamily: '"Courier New", Courier, monospace', letterSpacing: '0.05em', textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
                         {name}
                     </h2>
                     
-                    <div className="flex justify-between items-end mt-1">
+                    <div className="flex justify-between items-end -mt-1">
                         {/* Card Number */}
                         <p className="text-sm md:text-base text-gray-300 font-mono tracking-widest opacity-80" style={{ textShadow: '1px 1px 1px rgba(0,0,0,0.5)' }}>
                             {formattedCardNumber}
