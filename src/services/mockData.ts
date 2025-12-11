@@ -3,7 +3,7 @@ import type { User, Client, Payment, Doctor, Rating, ServiceHistoryItem, Reminde
 import { GOOGLE_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_DRIVE_SCOPE } from '../config';
 
 // Atualize esta versão para forçar o recarregamento dos dados no navegador dos usuários
-const DATA_VERSION = '2025-11-04-BACKUP-RESTORED-V6'; 
+const DATA_VERSION = '2025-12-12-DATA-UPDATE-FULL'; 
 
 const BACKUP_STORAGE_KEY = 'descontsaude_backup_data';
 const VERSION_STORAGE_KEY = 'descontsaude_data_version';
@@ -18,127 +18,453 @@ export const DEFAULT_PLAN_CONFIG: PlanConfig = {
     extraDependentPrice: 10.00
 };
 
-// -------------------------------------------------------------------------
-// ÁREA DO DESENVOLVEDOR - IMPORTAÇÃO DE DADOS
-// -------------------------------------------------------------------------
-// Instrução: Para atualizar os dados definitivos do sistema,
-// substitua o conteúdo das variáveis MOCK_CLIENTS e MOCK_DOCTORS abaixo
-// com o conteúdo do arquivo 'sistema_completo_para_dev.json' gerado pelo Admin.
-// -------------------------------------------------------------------------
-
-const parseDependents = (clientData: any): any[] => {
-    // Legacy parser for raw imports. Not used if MOCK_CLIENTS is fully populated.
-    const dependents = [];
-    for (let i = 1; i <= 6; i++) {
-        const field = `Campos Personalizado ${i}`;
-        if (clientData[field]) {
-            const text = clientData[field];
-            const parts = text.split(':');
-            if (parts.length >= 2) {
-                const namePart = parts[0].replace('Dp', '').replace('Dep', '').trim();
-                const infoPart = parts.slice(1).join(':').trim();
-
-                const nameMatch = namePart;
-                const dateMatch = infoPart.match(/(\d{2}\/\d{2}\/\d{4})/);
-                const cpfMatch = infoPart.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})|(\d{11})/);
-
-                if (nameMatch) {
-                    const birthDate = dateMatch ? `${dateMatch[1].split('/')[2]}-${dateMatch[1].split('/')[1]}-${dateMatch[1].split('/')[0]}` : '2000-01-01';
-                    dependents.push({
-                        id: `dep-${clientData['Código']}-${i}`,
-                        name: nameMatch.trim(),
-                        relationship: 'Dependente',
-                        cpf: cpfMatch ? cpfMatch[0] : '000.000.000-00',
-                        birthDate: new Date(birthDate).toISOString(),
-                        status: 'active',
-                        registrationDate: new Date().toISOString(),
-                    });
-                }
-            }
-        }
-    }
-    return dependents;
-};
-
-// Legacy Raw Data (Used for initial seed, can be kept or cleared if full MOCK_CLIENTS is provided)
-const rawClients = [
- { "Código": "03FB445E36404F0EBD3A5FE7DE3C5331", "Nome": "Maria Helena Magalhães", "E-mail": "descontsaudesuport@gmail.com", "CPF/CNPJ": "20703660063", "CEP": "96360000", "Endereço": "Bento Gonçalves", "Número": "39", "Bairro": "RS", "Cidade": "Pedro Osório", "Estado": "RS", "DDD": "53", "Telefone": "981229291" },
- // ... data truncated for brevity ...
-];
-
 // --- DADOS DOS CLIENTES ---
-// Substitua esta inicialização se tiver um JSON completo exportado
-export let MOCK_CLIENTS: Client[] = rawClients.map((c: any, index: number) => ({
-  id: c['Código'] || c['id'] || `client${index}`,
-  contractNumber: c['contractNumber'] || `019${String(c['CPF/CNPJ'] || '').replace(/\D/g, '').slice(-8) || String(Date.now() + index).slice(-8)}`,
-  name: c['Nome'] || c['name'] || 'Nome não informado',
-  cpf: c['cpf'] || String(c['CPF/CNPJ'] || '').replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') || '000.000.000-00',
-  birthDate: c['birthDate'] || '1990-01-01T00:00:00.000Z', 
-  gender: c['gender'] || 'X',
-  phone: c['phone'] || `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
-  whatsapp: c['whatsapp'] || `(${c['DDD'] || '00'}) ${c['Telefone'] || '00000-0000'}`,
-  email: c['E-mail'] || c['email'] || 'email@naoinformado.com',
-  address: c['Endereço'] || c['address'] || 'Não informado',
-  addressNumber: c['Número'] || c['addressNumber'] || 'S/N',
-  neighborhood: c['Bairro'] || c['neighborhood'] || 'Não informado',
-  city: c['Cidade'] || c['city'] || 'Não informada',
-  plan: c['plan'] || 'Plano Padrão',
-  monthlyFee: c['monthlyFee'] || 26.00,
-  registrationFee: c['registrationFee'] || 0.00,
-  paymentDueDateDay: c['paymentDueDateDay'] || 20,
-  promotion: c['promotion'] !== undefined ? c['promotion'] : false,
-  salesRep: c['salesRep'] || 'TIAGO SILVA',
-  status: c['status'] || 'active',
-  dependents: c['dependents'] || parseDependents(c),
-  cep: c['CEP'] || c['cep'],
-  annotations: c['Anotações'] || c['annotations'] || '',
-  logs: c['logs'] || []
-}));
-
-// --- DADOS DOS MÉDICOS ---
-export let MOCK_DOCTORS: Doctor[] = [
-  // ... (Doctors list remains unchanged) ...
-  { id: 'doc1', name: 'Consultório Odontológico Aline Dias', specialty: 'Dentista', address: 'Rua Alberto Santos Dumont, 1610', city: 'Pedro Osório', phone: '(53) 99966-2292' },
+export let MOCK_CLIENTS: Client[] = [
+    {
+      "id": "03FB445E36404F0EBD3A5FE7DE3C5331",
+      "contractNumber": "01903660063",
+      "name": "Maria Helena Magalhães",
+      "cpf": "207.036.600-63",
+      "birthDate": "1990-01-01T00:00:00.000Z",
+      "gender": "X",
+      "phone": "(53) 981229291",
+      "whatsapp": "(53) 981229291",
+      "email": "descontsaudesuport@gmail.com",
+      "address": "R. Júlio de Castilhos",
+      "addressNumber": "71",
+      "neighborhood": "RS",
+      "city": "Pedro Osório",
+      "plan": "Plano Padrão",
+      "monthlyFee": 34,
+      "registrationFee": 0,
+      "paymentDueDateDay": 20,
+      "promotion": false,
+      "salesRep": "TIAGO SILVA",
+      "status": "active",
+      "dependents": [
+        {
+          "name": "FRANCINE MAGALHÃES VAZ",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:08:11.985Z",
+          "id": "dep1762092492592"
+        },
+        {
+          "name": "ANTONELLA FERREIRA MAGALHAES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:08:52.632Z",
+          "id": "dep1762092533232"
+        },
+        {
+          "name": "RODRIGO MAGALHÃES VAZ",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:09:10.389Z",
+          "id": "dep1762092550990"
+        },
+        {
+          "name": "LETICIA FERREIRA MAGALHALHÃES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:09:36.980Z",
+          "id": "dep1762092577582"
+        },
+        {
+          "name": "OTHÁVIO FERREIRA MAGALHÃES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:09:57.677Z",
+          "id": "dep1762092598277"
+        }
+      ],
+      "cep": "96360-000"
+    },
+    {
+      "id": "04512F1916B1488BA515949A38079309",
+      "contractNumber": "01942689008",
+      "name": "Josiane Gonçalves Rodrigues",
+      "cpf": "006.426.890-08",
+      "birthDate": "1990-01-01T00:00:00.000Z",
+      "gender": "X",
+      "phone": "(53) 530000000",
+      "whatsapp": "(53) 530000000",
+      "email": "descontsaudesuport@gmail.com",
+      "address": "R. Maria Isabel de Souza",
+      "addressNumber": "53991560861",
+      "neighborhood": "A",
+      "city": "Cerrito",
+      "plan": "Plano Padrão",
+      "monthlyFee": 26,
+      "registrationFee": 0,
+      "paymentDueDateDay": 20,
+      "promotion": false,
+      "salesRep": "TIAGO SILVA",
+      "status": "active",
+      "dependents": [
+        {
+          "id": "dep-04512F1916B1488BA515949A38079309-1",
+          "name": "JARDEL BRAGA FELIX",
+          "relationship": "Dependente",
+          "cpf": "000.000.000-00",
+          "birthDate": "1985-08-20T00:00:00.000Z",
+          "status": "active",
+          "registrationDate": "2025-10-31T11:07:20.885Z"
+        },
+        {
+          "name": "RAISSA RODRIGUES FELIX",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:12:27.300Z",
+          "id": "dep1762092747901"
+        },
+        {
+          "name": "JOSIMAR GONÇALVES RODRIGUES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:12:56.845Z",
+          "id": "dep1762092777446"
+        },
+        {
+          "name": "JOSIMERE GONÇALVES RODRIGUES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:13:22.353Z",
+          "id": "dep1762092802954"
+        },
+        {
+          "name": "IRVANE GONÇALVES RODRIGUES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:13:42.786Z",
+          "id": "dep1762092823386"
+        },
+        {
+          "name": "ADEMAR FERREIRA RODRIGUES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:14:00.558Z",
+          "id": "dep1762092841159"
+        },
+        {
+          "name": "LARA SANTANA RODRIGUES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:14:20.344Z",
+          "id": "dep1762092860947"
+        }
+      ],
+      "cep": "96395-000"
+    },
+    {
+      "id": "05196B68BA4D46D6B04D8E3D7BCD0571",
+      "contractNumber": "01976060010",
+      "name": "Maria Dorcelina O. Jurgina",
+      "cpf": "571.760.600-10",
+      "birthDate": "1990-01-01T00:00:00.000Z",
+      "gender": "X",
+      "phone": "(53) 991631918",
+      "whatsapp": "(53) 991631918",
+      "email": "descontsaudesuport@gmail.com",
+      "address": "R. José Krobs",
+      "addressNumber": "418",
+      "neighborhood": "RS",
+      "city": "Pedro Osório",
+      "plan": "Plano Padrão",
+      "monthlyFee": 26,
+      "registrationFee": 0,
+      "paymentDueDateDay": 20,
+      "promotion": false,
+      "salesRep": "TIAGO SILVA",
+      "status": "active",
+      "dependents": [
+        {
+          "name": "LUCIARA O. JURGINA",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:16:44.398Z",
+          "id": "dep1762093004998"
+        },
+        {
+          "name": "BELMIRO MIGUEL O. JURGINA",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:17:07.791Z",
+          "id": "dep1762093028391"
+        },
+        {
+          "name": "FERNANDO CESAR M. ALVES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:17:28.615Z",
+          "id": "dep1762093049215"
+        },
+        {
+          "name": "IARA MENNA OLIVEIRA",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:18:47.717Z",
+          "id": "dep1762093128317"
+        },
+        {
+          "name": "FERNANDA O. ALVES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:21:12.215Z",
+          "id": "dep1762093272815"
+        },
+        {
+          "name": "LUCIANA MENNA OLIVEIRA",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:21:53.756Z",
+          "id": "dep1762093314359"
+        },
+        {
+          "name": "ERICK OLIVEIRA RAMIRES",
+          "relationship": "-",
+          "status": "active",
+          "cpf": "00000000000",
+          "birthDate": "2025-11-02",
+          "registrationDate": "2025-11-02T14:22:20.123Z",
+          "id": "dep1762093340723"
+        }
+      ],
+      "cep": "96360-000"
+    },
+    {
+      "id": "0937CDB3BB0147BE8A6514FCAEDB93E5",
+      "contractNumber": "01963087034",
+      "name": "Zulma Borges Campelo",
+      "cpf": "517.630.870-34",
+      "birthDate": "1990-01-01T00:00:00.000Z",
+      "gender": "X",
+      "phone": "(53) 999751197",
+      "whatsapp": "(53) 999751197",
+      "email": "descontsaudesuport@gmail.com",
+      "address": "Whatsapp Descont' saúde ",
+      "addressNumber": "53991560861",
+      "neighborhood": "RS",
+      "city": "Pedro Osório",
+      "plan": "Plano Padrão",
+      "monthlyFee": 26,
+      "registrationFee": 0,
+      "paymentDueDateDay": 20,
+      "promotion": false,
+      "salesRep": "TIAGO SILVA",
+      "status": "inactive",
+      "dependents": []
+    },
+    {
+      "id": "6F5DDC391D8049BD929B08AC71DFBA29",
+      "contractNumber": "01940213040",
+      "name": "Tiago R Silva",
+      "cpf": "026.402.130-40",
+      "birthDate": "1990-01-01T00:00:00.000Z",
+      "gender": "X",
+      "phone": "(53) 991560861",
+      "whatsapp": "(53) 991560861",
+      "email": "ttks3809igp@gmail.com",
+      "address": "Bento Gonçalves",
+      "addressNumber": "39",
+      "neighborhood": "RS",
+      "city": "Pedro Osório",
+      "plan": "Plano Padrão",
+      "monthlyFee": 26,
+      "registrationFee": 0,
+      "paymentDueDateDay": 20,
+      "promotion": false,
+      "salesRep": "TIAGO SILVA",
+      "status": "active",
+      "dependents": [
+        {
+          "name": "Thales kaleby Alves da Silva ",
+          "relationship": "Filho ",
+          "cpf": "027.575.010-89",
+          "birthDate": "2025-12-11",
+          "id": "dep1765446401813",
+          "status": "active",
+          "registrationDate": "2025-12-11T09:46:41.814Z"
+        }
+      ],
+      "logs": [
+        {
+          "id": "log-1765468642970-3yvthfzr3",
+          "action": "dependent_action",
+          "description": "Dependente Thales kaleby Alves da Silva  alterado para active",
+          "timestamp": "2025-12-11T15:57:22.970Z",
+          "author": "Administrador"
+        },
+        {
+          "id": "log-1765446401815-h8zvzemml",
+          "action": "dependent_action",
+          "description": "Solicitação de inclusão de dependente: Thales kaleby Alves da Silva ",
+          "timestamp": "2025-12-11T09:46:41.815Z",
+          "author": "Administrador"
+        }
+      ]
+    },
+    {
+      "id": "0B78BA7A411B42DB85D3EF700D3E7E5B",
+      "contractNumber": "01920130000",
+      "name": "Gileine Garcia de Mattos ",
+      "cpf": "574.201.300-00",
+      "birthDate": "1990-01-01T00:00:00.000Z",
+      "gender": "X",
+      "phone": "(53) 984273199",
+      "whatsapp": "(53) 984273199",
+      "email": "gileinemattos@gmail.com",
+      "address": "Rua Blau Nunes",
+      "addressNumber": "252",
+      "neighborhood": "Areal",
+      "city": "Pelotas",
+      "plan": "Plano Padrão",
+      "monthlyFee": 26,
+      "registrationFee": 0,
+      "paymentDueDateDay": 20,
+      "promotion": false,
+      "salesRep": "TIAGO SILVA",
+      "status": "active",
+      "dependents": [
+        {
+          "id": "dep-0B78BA7A411B42DB85D3EF700D3E7E5B-1",
+          "name": "Giulian Garcia de Mattos",
+          "relationship": "Dependente",
+          "cpf": "05168865097",
+          "birthDate": "2008-02-20T00:00:00.000Z",
+          "status": "active",
+          "registrationDate": "2025-10-31T11:07:20.886Z"
+        },
+        {
+          "id": "dep-0B78BA7A411B42DB85D3EF700D3E7E5B-2",
+          "name": "JORGE LUIZ GOMES DE MATTOS",
+          "relationship": "Dependente",
+          "cpf": "34861149053",
+          "birthDate": "1965-02-20T00:00:00.000Z",
+          "status": "active",
+          "registrationDate": "2025-10-31T11:07:20.886Z"
+        }
+      ]
+    },
 ];
+
+// --- OUTROS MOCKS ---
 
 export let MOCK_PAYMENTS: Payment[] = [];
+export let MOCK_DOCTORS: Doctor[] = [
+  // Pedro Osório
+  { id: 'doc1', name: 'Consultório Odontológico Aline Dias', specialty: 'Dentista', address: 'Rua Alberto Santos Dumont, 1610', city: 'Pedro Osório', phone: '(53) 99966-2292' },
+  { id: 'doc2', name: 'Consultório Odontológico Francine Gayer', specialty: 'Dentista', address: 'Rua Maximiliano de Almeida, 2038', city: 'Pedro Osório', phone: '(53) 99969-5249' },
+  { id: 'doc3', name: 'Clínica Popular Saúde', specialty: 'Clínico Geral', address: 'Rua Alberto Santos Dumont, 1492', city: 'Pedro Osório', phone: '(53) 3255-1718', whatsapp: '(53) 98404-9462' },
+  { id: 'doc4', name: 'Farmácia Agafarma', specialty: 'Farmácia', address: 'Rua Maximiliano de Almeida, 1630', city: 'Pedro Osório', phone: '(53) 3255-1414', whatsapp: '(53) 98409-5415' },
+  { id: 'doc5', name: 'Farmácia Confiança', specialty: 'Farmácia', address: 'Rua Alberto Santos Dumont, 1378', city: 'Pedro Osório', phone: '(53) 3255-1215', whatsapp: '(53) 98433-8809' },
+  { id: 'doc6', name: 'Farmácia Líder', specialty: 'Farmácia', address: 'Rua Maximiliano de Almeida, 1910', city: 'Pedro Osório', phone: '(53) 3255-1361' },
+  { id: 'doc7', name: 'Dra. Carolina Torma', specialty: 'Psicóloga', address: 'Rua Alberto Santos Dumont, 1361', city: 'Pedro Osório', phone: '(53) 99119-9439' },
+
+  // Cerrito
+  { id: 'doc8', name: 'Farmácia Municipal', specialty: 'Farmácia', address: 'Rua Doutor Ferreira, 477', city: 'Cerrito', phone: '(53) 3254-1188' },
+  { id: 'doc9', name: 'Farmácia Agafarma', specialty: 'Farmácia', address: 'Rua Doutor Ferreira, 429', city: 'Cerrito', phone: '(53) 3254-1100', whatsapp: '(53) 98409-5409' },
+  { id: 'doc10', name: 'Farmácia Confiança', specialty: 'Farmácia', address: 'Rua Doutor Ferreira, 474', city: 'Cerrito', phone: '(53) 3254-1215', whatsapp: '(53) 98409-5408' },
+  { id: 'doc11', name: 'Consultório Odontológico Franciele Gayer', specialty: 'Dentista', address: 'Rua Doutor Ferreira, 477', city: 'Cerrito', phone: '(53) 98402-2373' },
+
+  // Pelotas
+  { id: 'doc12', name: 'Clínica de Olhos Dr. Ricardo V. B. Nogueira', specialty: 'Oftalmologista', address: 'Rua Quinze de Novembro, 725', city: 'Pelotas', phone: '(53) 3225-3330', whatsapp: '(53) 99943-4217' },
+  { id: 'doc13', name: 'Dr. Cesar R. P. Beltrão', specialty: 'Oftalmologista', address: 'Rua Quinze de Novembro, 742', city: 'Pelotas', phone: '(53) 3222-1138' },
+  { id: 'doc14', name: 'Dr. Leonardo P. da Silva', specialty: 'Oftalmologista', address: 'Rua Andrade Neves, 2195', city: 'Pelotas', phone: '(53) 3225-8317' },
+  { id: 'doc15', name: 'Laboratório Antonello', specialty: 'Laboratório', address: 'Rua General Osório, 770', city: 'Pelotas', phone: '(53) 3227-1482', whatsapp: '(53) 99173-8181' },
+  { id: 'doc16', name: 'Laboratório Thofehrn', specialty: 'Laboratório', address: 'Rua Barão de Santa Tecla, 582', city: 'Pelotas', phone: '(53) 3222-1960', whatsapp: '(53) 98118-2070' },
+  { id: 'doc17', name: 'Laboratório Vitaderm', specialty: 'Laboratório', address: 'Rua General Osório, 1125', city: 'Pelotas', phone: '(53) 3227-2300', whatsapp: '(53) 99999-9999' },
+  { id: 'doc18', name: 'Dr. João Carlos da S. Pantoja', specialty: 'Clínico Geral', address: 'Rua Félix da Cunha, 766', city: 'Pelotas', phone: '(53) 3227-2342' },
+  { id: 'doc19', name: 'Dra. Luiza D. V. Pantoja', specialty: 'Clínico Geral', address: 'Rua Félix da Cunha, 766', city: 'Pelotas', phone: '(53) 3227-2342' },
+  { id: 'doc20', name: 'Dr. Fernando L. P. Leite', specialty: 'Otorrinolaringologista', address: 'Rua Voluntários da Pátria, 1174', city: 'Pelotas', phone: '(53) 3222-3868' },
+  { id: 'doc21', name: 'Dr. Fernando T. A. Moreira', specialty: 'Cardiologista', address: 'Rua Quinze de Novembro, 963', city: 'Pelotas', phone: '(53) 3222-8350' },
+  { id: 'doc22', name: 'Dr. Gustavo N. F. da Rosa', specialty: 'Ginecologista', address: 'Rua Quinze de Novembro, 614', city: 'Pelotas', phone: '(53) 3227-5056' },
+  { id: 'doc23', name: 'Dr. Henrique D. de Freitas', specialty: 'Dermatologista', address: 'Rua Quinze de Novembro, 614', city: 'Pelotas', phone: '(53) 3227-5056' },
+  { id: 'doc24', name: 'Dra. Carolina G. Saraiva', specialty: 'Pediatra', address: 'Rua Quinze de Novembro, 614', city: 'Pelotas', phone: '(53) 3227-5056' },
+  { id: 'doc25', name: 'Dr. Jader B. Cruz', specialty: 'Urologista', address: 'Rua Almirante Barroso, 2307', city: 'Pelotas', phone: '(53) 3222-7945' },
+  { id: 'doc26', name: 'Dra. Anelise B. Cruz', specialty: 'Psiquiatra', address: 'Rua Almirante Barroso, 2307', city: 'Pelotas', phone: '(53) 3222-7945' },
+  { id: 'doc27', name: 'Consultório Odontológico Dr. Fabrício B. da Silva', specialty: 'Dentista', address: 'Rua Quinze de Novembro, 638', city: 'Pelotas', phone: '(53) 3222-8255' },
+
+  // Canguçu
+  { id: 'doc28', name: 'Farmácia Agafarma', specialty: 'Farmácia', address: 'Rua General Osório, 1279', city: 'Canguçu', phone: '(53) 3252-1629' },
+  { id: 'doc29', name: 'Farmácia Farmavida', specialty: 'Farmácia', address: 'Rua General Osório, 1060', city: 'Canguçu', phone: '(53) 3252-7070' },
+
+  // Morro Redondo
+  { id: 'doc30', name: 'Farmácia Agafarma', specialty: 'Farmácia', address: 'Av. dos Pinhais, 09', city: 'Morro Redondo', phone: '(53) 3224-0010' },
+
+  // Arroio Grande
+  { id: 'doc31', name: 'Farmácia Droga Raia', specialty: 'Farmácia', address: 'Rua Dr. Monteiro, 715', city: 'Arroio Grande', phone: '(53) 3262-1088' },
+
+  // Piratini
+  { id: 'doc32', name: 'Farmácia Agafarma', specialty: 'Farmácia', address: 'Rua Comendador Freitas, 219', city: 'Piratini', phone: '(53) 3257-1191' }
+];
 export let MOCK_REMINDERS: Reminder[] = [];
 export let MOCK_UPDATE_REQUESTS: UpdateApprovalRequest[] = [];
 export let MOCK_FINANCIAL_RECORDS: CourierFinancialRecord[] = [];
-export let MOCK_PLAN_CONFIG: PlanConfig = { ...DEFAULT_PLAN_CONFIG };
 export let MOCK_RATINGS: Rating[] = [];
 export let MOCK_SERVICE_HISTORY: ServiceHistoryItem[] = [];
+export let MOCK_PLAN_CONFIG: PlanConfig = { ...DEFAULT_PLAN_CONFIG };
 
-// Derived MOCK_USERS
-export let MOCK_USERS: User[] = [];
+export let MOCK_USERS: User[] = [
+    { id: 'user1', name: 'Admin User', cpf: '111.111.111-11', phone: '(53) 91111-1111', role: 'admin' },
+    { id: 'user-entregador', name: 'Entregador', cpf: '000.000.000-00', phone: '', role: 'entregador' }
+];
 
-const generateMockUsers = () => {
-    MOCK_USERS = [
-        { id: 'user1', name: 'Admin User', cpf: '111.111.111-11', phone: '(53) 91111-1111', role: 'admin' },
-        { id: 'user-entregador', name: 'Entregador', cpf: '000.000.000-00', phone: '(53) 90000-0000', role: 'entregador' },
-    ];
-
-    // Create users for CLIENTS
+// Initialize users based on clients
+const initializeUsers = () => {
+    const clientUsers = MOCK_CLIENTS.map((client) => ({
+        id: `user-${client.id}`,
+        name: client.name,
+        cpf: client.cpf,
+        phone: client.phone,
+        role: 'client' as const,
+        clientId: client.id
+    }));
+    
+    const dependentUsers: User[] = [];
     MOCK_CLIENTS.forEach(client => {
-        MOCK_USERS.push({
-            id: `user-${client.id}`,
-            name: client.name,
-            cpf: client.cpf,
-            phone: client.phone,
-            role: 'client',
-            clientId: client.id
-        });
-
-        // Create users for DEPENDENTS
         if (client.dependents) {
             client.dependents.forEach(dep => {
-                const cleanCpf = dep.cpf.replace(/\D/g, '');
-                if (cleanCpf && cleanCpf !== '00000000000') {
-                    MOCK_USERS.push({
+                if (dep.cpf) {
+                    dependentUsers.push({
                         id: `user-dep-${dep.id}`,
                         name: dep.name,
                         cpf: dep.cpf,
-                        phone: client.phone, // Dependents share contact
+                        phone: client.phone,
                         role: 'dependent',
                         clientId: client.id,
                         dependentId: dep.id
@@ -147,59 +473,58 @@ const generateMockUsers = () => {
             });
         }
     });
-    console.log(`Generated ${MOCK_USERS.length} users for login.`);
+    
+    MOCK_USERS = [
+        { id: 'user1', name: 'Admin User', cpf: '111.111.111-11', phone: '(53) 91111-1111', role: 'admin' },
+        { id: 'user-entregador', name: 'Entregador', cpf: '000.000.000-00', phone: '', role: 'entregador' },
+        ...clientUsers,
+        ...dependentUsers
+    ];
 };
 
-// Initial generation to ensure users exist on first load
-generateMockUsers();
+// --- DATA PERSISTENCE & GOOGLE DRIVE ---
 
-// Helper functions for data management
+// Delay utility
+const apiDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export const loadLocalData = () => {
-    try {
-        // Check version
-        const savedVersion = localStorage.getItem(VERSION_STORAGE_KEY);
-        if (savedVersion !== DATA_VERSION) {
-            console.log("New data version detected. Resetting local data to defaults.");
-            localStorage.removeItem(BACKUP_STORAGE_KEY);
-            localStorage.setItem(VERSION_STORAGE_KEY, DATA_VERSION);
-            
-            // Reset modifiable arrays
-            MOCK_PAYMENTS = [];
-            MOCK_REMINDERS = [];
-            MOCK_UPDATE_REQUESTS = [];
-            MOCK_FINANCIAL_RECORDS = [];
-            MOCK_PLAN_CONFIG = { ...DEFAULT_PLAN_CONFIG };
-            
-            // Re-generate users based on the static client list
-            generateMockUsers();
-            return;
+    const storedVersion = localStorage.getItem(VERSION_STORAGE_KEY);
+    const storedData = localStorage.getItem(BACKUP_STORAGE_KEY);
+
+    if (storedData) {
+        if (storedVersion !== DATA_VERSION) {
+             console.log("New data version detected. Using code-defined mock data.");
+             localStorage.setItem(VERSION_STORAGE_KEY, DATA_VERSION);
+             initializeUsers();
+             return;
         }
 
-        const savedData = localStorage.getItem(BACKUP_STORAGE_KEY);
-        if (savedData) {
-            const parsed = JSON.parse(savedData);
-            MOCK_CLIENTS = parsed.clients || MOCK_CLIENTS;
-            MOCK_DOCTORS = parsed.doctors || MOCK_DOCTORS;
-            MOCK_PAYMENTS = parsed.payments || [];
-            MOCK_REMINDERS = parsed.reminders || [];
-            MOCK_UPDATE_REQUESTS = parsed.updateRequests || [];
-            MOCK_FINANCIAL_RECORDS = parsed.financialRecords || [];
-            MOCK_PLAN_CONFIG = parsed.planConfig || { ...DEFAULT_PLAN_CONFIG };
+        try {
+            const parsed = JSON.parse(storedData);
+            if (parsed.clients) MOCK_CLIENTS = parsed.clients;
+            if (parsed.doctors) MOCK_DOCTORS = parsed.doctors;
+            if (parsed.payments) MOCK_PAYMENTS = parsed.payments;
+            if (parsed.reminders) MOCK_REMINDERS = parsed.reminders;
+            if (parsed.updateRequests) MOCK_UPDATE_REQUESTS = parsed.updateRequests;
+            if (parsed.planConfig) MOCK_PLAN_CONFIG = parsed.planConfig;
+            if (parsed.financialRecords) MOCK_FINANCIAL_RECORDS = parsed.financialRecords;
+            
+            initializeUsers();
+        } catch (e) {
+            console.error("Failed to load local data", e);
+            initializeUsers();
         }
-        generateMockUsers();
-    } catch (e) {
-        console.error("Error loading local data", e);
-        generateMockUsers();
+    } else {
+        localStorage.setItem(VERSION_STORAGE_KEY, DATA_VERSION);
+        initializeUsers();
     }
 };
 
-export const loadInitialData = async () => {
-    // This is where Google Drive sync would happen
-    // For now we assume loadLocalData has run.
-    return null;
+export const saveReminders = () => {
+    saveLocalData();
 };
 
-export const saveReminders = () => {
+const saveLocalData = () => {
     const backupData = {
         clients: MOCK_CLIENTS,
         doctors: MOCK_DOCTORS,
@@ -221,57 +546,72 @@ export const setBackupData = (data: any) => {
     if (data.planConfig) MOCK_PLAN_CONFIG = data.planConfig;
     if (data.financialRecords) MOCK_FINANCIAL_RECORDS = data.financialRecords;
     
-    generateMockUsers();
-    saveReminders(); // Save to local storage
+    initializeUsers();
+    saveLocalData();
 };
 
 export const resetData = () => {
     localStorage.removeItem(BACKUP_STORAGE_KEY);
-    localStorage.removeItem(VERSION_STORAGE_KEY);
-    // Reloads defaults on next load or refresh
+    // Reload page usually handles the rest
 };
 
-// ... (Rest of Google Drive Integration stubs)
-export const isGoogleApiInitialized = () => {
-    return !!(window.gapi && window.google);
+export const importRouteData = (routeData: Client[]) => {
+    routeData.forEach(routeClient => {
+        const index = MOCK_CLIENTS.findIndex(c => c.id === routeClient.id);
+        if (index !== -1) {
+            if (routeClient.deliveryStatus !== undefined) {
+                 MOCK_CLIENTS[index].deliveryStatus = routeClient.deliveryStatus;
+            }
+            if (routeClient.logs && routeClient.logs.length > (MOCK_CLIENTS[index].logs?.length || 0)) {
+                MOCK_CLIENTS[index].logs = routeClient.logs;
+            }
+        }
+    });
+    saveLocalData();
 };
 
-export const saveBackupToDrive = async () => {
-    // Implementation would go here using gapi
-    console.log("Saving to drive...");
-    await new Promise(resolve => setTimeout(resolve, 1000));
-};
-
-export const syncFromDrive = async () => {
-    console.log("Syncing from drive...");
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { message: 'Sincronização simulada concluída.', type: 'success' as const };
-};
-
-export const mergeUpdateRequests = (newRequests: UpdateApprovalRequest[]) => {
+export const mergeUpdateRequests = (newRequests: UpdateApprovalRequest[]): number => {
     let count = 0;
     newRequests.forEach(req => {
-        if (!MOCK_UPDATE_REQUESTS.find(r => r.id === req.id)) {
+        if (!MOCK_UPDATE_REQUESTS.some(existing => existing.id === req.id)) {
             MOCK_UPDATE_REQUESTS.push(req);
             count++;
         }
     });
+    saveLocalData();
     return count;
 };
 
-export const importRouteData = (routeData: any[]) => {
-    // Updates addresses of existing clients based on route data
-    let count = 0;
-    routeData.forEach(routeItem => {
-        const client = MOCK_CLIENTS.find(c => c.id === routeItem.id);
-        if (client) {
-            client.address = routeItem.address || client.address;
-            client.addressNumber = routeItem.addressNumber || client.addressNumber;
-            client.neighborhood = routeItem.neighborhood || client.neighborhood;
-            client.city = routeItem.city || client.city;
-            count++;
-        }
-    });
-    console.log(`Updated ${count} clients from route data.`);
-    saveReminders();
+// --- GOOGLE DRIVE INTEGRATION ---
+
+let gapiInited = false;
+let gisInited = false;
+
+export const isGoogleApiInitialized = () => gapiInited && gisInited;
+
+export const loadInitialData = async () => {
+    return null;
 };
+
+export const saveBackupToDrive = async () => {
+    if (!isGoogleApiInitialized()) throw new Error("Google API not initialized");
+    console.log("Mock saving to Drive...");
+    await apiDelay(1000);
+    return;
+};
+
+export const syncFromDrive = async () => {
+    if (!isGoogleApiInitialized()) return { message: "Google API not initialized", type: 'error' as const };
+    console.log("Mock syncing from Drive...");
+    await apiDelay(1000);
+    return { message: "Sync successful (mock)", type: 'success' as const };
+};
+
+export const initGoogleApi = () => {
+    gapiInited = true;
+    gisInited = true;
+};
+
+setTimeout(() => {
+    initGoogleApi();
+}, 1000);
