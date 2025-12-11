@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Payment, Client } from '../../types';
 import Modal from '../common/Modal';
+import BrandLogo from '../common/BrandLogo';
 
 declare const html2canvas: any;
 declare const jspdf: any;
@@ -114,72 +116,70 @@ const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({ isOpen, onClo
 
         <div id="receipt-content" className="bg-white text-gray-800 font-sans">
           <div className="relative overflow-hidden">
-            <div className="bg-ds-vinho h-60 relative px-4 pt-4">
-               <div className="flex justify-between items-start">
+            <div className="bg-ds-vinho h-64 relative px-6 pt-6">
+               <div className="flex justify-between items-start relative z-10">
                   <div className="bg-white text-black text-center font-bold p-2 rounded-xl shadow-md">
                     {receiptId}
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <div className="bg-[#25D366] text-white flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold">
+                    <div className="bg-[#25D366] text-white flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm border border-white/20">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241z"/></svg>
                       <span>53 9 9156 - 0861</span>
                     </div>
-                     <div className="bg-[#1877F2] text-white flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold">
+                     <div className="bg-[#1877F2] text-white flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm border border-white/20">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                       <span>@Descontsaude</span>
                     </div>
                   </div>
                 </div>
-              <h1 className="text-white text-3xl font-bold tracking-wider text-center mt-2">COMPROVANTE DE PAGAMENTO</h1>
-              <div className="absolute top-40 left-1/2 -translate-x-1/2">
-                <svg viewBox="0 0 100 100" className="w-20 h-20 opacity-80">
-                    <g>
-                        <path d="M50 20 L80 50 L50 80 L20 50 Z" fill="#D0AB6A"/>
-                        <path d="M42 30 H58 V43 H70 V57 H58 V70 H42 V57 H30 V43 H42Z" fill="#750721"/>
-                    </g>
-                </svg>
+              
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                 <BrandLogo className="w-24 h-24 mb-2 drop-shadow-lg" />
+                 <h1 className="text-white text-2xl font-bold tracking-widest text-center mt-2 border-t border-white/30 pt-2 w-full">COMPROVANTE</h1>
               </div>
             </div>
 
-            <div className="p-6 pt-16 -mt-32 relative">
-              <div className="bg-gray-50/90 backdrop-blur-sm p-6 rounded-2xl shadow-lg relative overflow-hidden border">
-                <div className="absolute top-0 right-0 w-16 h-16">
+            <div className="p-6 pt-8 bg-gray-100">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20">
                   <div className="w-full h-full bg-green-500" style={{clipPath: 'polygon(100% 0, 0 0, 100% 100%)'}}></div>
+                  <div className="absolute top-2 right-2 text-white font-bold text-xs transform rotate-45">PAGO</div>
                 </div>
                 
-                <p className="text-sm text-gray-500">CLIENTE</p>
-                <h2 className="text-2xl font-bold text-gray-800">{client.name}</h2>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Cliente</p>
+                <h2 className="text-2xl font-bold text-ds-vinho border-b pb-4 mb-4">{client.name}</h2>
 
-                <div className="mt-8 grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <h3 className="font-bold text-lg mb-4 text-gray-700">Detalhes da Fatura</h3>
+                    <h3 className="font-bold text-lg mb-4 text-gray-800">Detalhes da Fatura</h3>
                     <div className="space-y-3 text-sm">
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <span className="text-gray-600">Descrição</span>
-                        <span className="font-semibold">Descont' Saúde</span>
+                      <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                        <span className="text-gray-500">Descrição</span>
+                        <span className="font-semibold text-gray-700">Descont' Saúde</span>
                       </div>
-                       <div className="flex justify-between items-center border-b pb-2">
-                        <span className="text-gray-600">Valor da Fatura</span>
-                        <span className="font-semibold">R$ {payment.amount.toFixed(2)}</span>
+                       <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                        <span className="text-gray-500">Valor Original</span>
+                        <span className="font-semibold text-gray-700">R$ {payment.amount.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center pt-2">
-                        <span className="font-bold text-lg">Valor Pago</span>
-                        <span className="font-bold text-lg text-ds-vinho">R$ {paidAmount.toFixed(2)}</span>
+                        <span className="font-bold text-lg text-gray-800">Valor Pago</span>
+                        <span className="font-bold text-lg text-green-600">R$ {paidAmount.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right space-y-4">
+                  <div className="text-right space-y-6">
                     <div>
-                        <p className="text-gray-600">Vencimento</p>
-                        <p className="font-bold text-3xl text-gray-800">{new Date(payment.dueDate).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase">Vencimento</p>
+                        <p className="font-bold text-2xl text-gray-700">{new Date(payment.dueDate).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</p>
                     </div>
                     <div>
-                        <p className="text-gray-600">Data do Pagamento</p>
-                        <p className="font-bold text-xl text-gray-800">{new Date(paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase">Data do Pagamento</p>
+                        <p className="font-bold text-xl text-gray-700">{new Date(paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</p>
                     </div>
                   </div>
                 </div>
               </div>
+              <p className="text-center text-xs text-gray-400 mt-6">Autenticação Digital: {Math.random().toString(36).substr(2, 15).toUpperCase()}</p>
             </div>
           </div>
         </div>

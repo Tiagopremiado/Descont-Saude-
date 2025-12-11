@@ -1,24 +1,30 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
+import BrandLogo from '../components/common/BrandLogo';
 
 const AboutPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
-            <header className="bg-ds-vinho text-white shadow-lg p-4">
+            <header className="bg-ds-vinho text-white shadow-lg p-4 border-b border-ds-dourado/20">
                 <div className="max-w-5xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-ds-dourado mr-3" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <h1 className="text-xl font-bold tracking-wider">Sobre a Descont'Saúde</h1>
+                    <div className="flex items-center gap-3">
+                        <BrandLogo className="h-10 w-10" />
+                        <h1 className="text-xl font-bold tracking-wider font-sans">
+                            Sobre a Descont'<span className="text-ds-dourado font-serif italic">Saúde</span>
+                        </h1>
                     </div>
-                    <Link to="/login" className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors duration-200">
+                    <Link to="/login" className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors duration-200 text-sm shadow-md">
                         Voltar ao Login
                     </Link>
                 </div>
             </header>
             <main className="p-4 sm:p-8">
-                <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-md">
+                <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                    <div className="flex justify-center mb-8">
+                        <BrandLogo className="w-24 h-24" />
+                    </div>
+                    
                     <h2 className="text-3xl font-bold text-ds-vinho font-serif mb-6 text-center">Nosso Compromisso com o seu Bem-Estar</h2>
 
                     <div className="space-y-8 text-gray-700 text-lg leading-relaxed">

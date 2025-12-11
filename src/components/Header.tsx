@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import BrandLogo from './common/BrandLogo';
 
 interface HeaderProps {
     pendingCount?: number;
@@ -12,15 +13,13 @@ const Header: React.FC<HeaderProps> = ({ pendingCount = 0, onNotificationClick, 
     const { user } = useAuth();
 
     return (
-        <header className="bg-ds-vinho text-white shadow-lg sticky top-0 z-30">
+        <header className="bg-ds-vinho text-white shadow-lg sticky top-0 z-30 border-b border-ds-dourado/20">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                    <div className="bg-white/10 p-1.5 rounded-lg backdrop-blur-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-ds-dourado" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                    </div>
-                    <h1 className="text-lg font-bold tracking-wide font-serif">Descont'Saúde</h1>
+                    <BrandLogo className="h-10 w-10" />
+                    <h1 className="text-xl font-bold tracking-wide font-sans">
+                        Descont'<span className="text-ds-dourado font-serif italic">Saúde</span>
+                    </h1>
                 </div>
                 
                 <div className="flex items-center gap-4">
@@ -36,10 +35,10 @@ const Header: React.FC<HeaderProps> = ({ pendingCount = 0, onNotificationClick, 
                      )}
                     
                     <div className="flex items-center gap-3">
-                        <span className="hidden sm:block text-sm text-white/90">Olá, <span className="font-semibold">{user?.name.split(' ')[0]}</span></span>
+                        <span className="hidden sm:block text-sm text-white/90">Olá, <span className="font-semibold text-ds-dourado">{user?.name.split(' ')[0]}</span></span>
                         <button
                             onClick={onLogoutRequest}
-                            className="text-sm bg-black/20 hover:bg-black/30 text-white font-medium py-1.5 px-3 rounded-lg transition-colors duration-200 backdrop-blur-sm"
+                            className="text-sm bg-black/20 hover:bg-black/30 text-white font-medium py-1.5 px-3 rounded-lg transition-colors duration-200 backdrop-blur-sm border border-white/10"
                         >
                             Sair
                         </button>
