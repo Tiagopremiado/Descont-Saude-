@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface IdCardViewProps {
@@ -7,130 +8,110 @@ interface IdCardViewProps {
     holderName?: string;
 }
 
-const generateCardDates = () => {
-    const issueDate = new Date();
-    const expiryDate = new Date();
-    expiryDate.setFullYear(issueDate.getFullYear() + 1);
-
-    const format = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`;
-
-    return {
-        issue: format(issueDate),
-        expiry: format(expiryDate),
-    };
-};
-
-const BackgroundWatermark = () => (
-    <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none flex items-center justify-center overflow-hidden">
-         <svg viewBox="0 0 200 200" className="w-[150%] h-[150%] animate-spin-slow">
-            <path fill="currentColor" d="M100 0 L130 70 L200 100 L130 130 L100 200 L70 130 L0 100 L70 70 Z" />
-         </svg>
-    </div>
-);
-
-const WhatsAppIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241z"/>
-    </svg>
-);
-
-const FacebookIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-    </svg>
-);
-
-const MedicalCross = () => (
-    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-        {/* Diamond Background */}
-        <path d="M50 5 L95 50 L50 95 L5 50 Z" fill="#f3f4f6" stroke="#D0AB6A" strokeWidth="2"/>
-        {/* Cross */}
-        <path d="M40 25 H60 V40 H75 V60 H60 V75 H40 V60 H25 V40 H40 Z" fill="#750721" stroke="#D0AB6A" strokeWidth="2" />
-    </svg>
-);
-
-
 const IdCardView: React.FC<IdCardViewProps> = ({ name, role, cardNumber, holderName }) => {
-    const { issue, expiry } = generateCardDates();
+    // Define o ano de validade (sempre um ano à frente ou fixo conforme regra de negócio)
+    const validYear = new Date().getFullYear() + 1; 
+
+    // Formata o número do cartão em grupos de 4 dígitos para estilo cartão de crédito
+    const formattedCardNumber = cardNumber.padEnd(16, '0').match(/.{1,4}/g)?.join(' ') || cardNumber;
 
     return (
-        <div className="bg-white rounded-xl shadow-xl max-w-[360px] mx-auto overflow-hidden font-sans relative border border-gray-300">
-            {/* Header Stripe */}
-            <div className="bg-ds-vinho h-24 relative overflow-hidden">
-                {/* Decorative curve */}
-                <div className="absolute -bottom-8 -left-4 w-[120%] h-20 bg-[#5c061a] rounded-[50%] opacity-50"></div>
-                <div className="relative z-10 flex flex-col items-center justify-center h-full pt-2">
-                    <p className="text-[10px] text-ds-dourado tracking-[0.2em] uppercase font-semibold">Cartão de Identificação Digital</p>
-                    <div className="flex items-center justify-center mt-1">
-                        <h1 className="text-4xl text-white drop-shadow-md">
-                            <span className="font-script">Descont'</span>
-                            <span className="font-serif italic -ml-1">Saúde</span>
-                        </h1>
-                    </div>
-                    <p className="text-[8px] text-white/70 mt-1">BRASIL ASSISTENCIAL LTDA FRANQUIA MASTER AUTORIZADA ®</p>
+        <div className="w-full max-w-[480px] aspect-[1.586/1] rounded-2xl relative overflow-hidden shadow-2xl bg-[#5c0416] text-white font-sans mx-auto transition-transform hover:scale-[1.02] duration-300">
+            {/* Background Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#750721] via-[#5c0416] to-[#2b020a]"></div>
+
+            {/* Geometric Patterns (Simulated with SVG) */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" viewBox="0 0 480 302">
+                {/* Top Right Decoration - Diamond Pattern */}
+                <g stroke="#D0AB6A" strokeWidth="1.5" fill="none">
+                    <path d="M480 40 L440 0" />
+                    <path d="M480 80 L400 0" />
+                    <path d="M480 120 L360 0" />
+                    
+                    {/* Icons in corners (Abstracted) */}
+                    <rect x="420" y="20" width="30" height="30" transform="rotate(45 435 35)" />
+                    <path d="M435 25 V45 M425 35 H445" strokeWidth="2" /> {/* Cross */}
+                </g>
+                
+                {/* Bottom Left Decoration - Diamond Pattern */}
+                <g stroke="#D0AB6A" strokeWidth="1.5" fill="none">
+                    <path d="M0 260 L40 302" />
+                    <path d="M0 220 L80 302" />
+                    <path d="M0 180 L120 302" />
+
+                    <rect x="30" y="250" width="30" height="30" transform="rotate(45 45 265)" />
+                    {/* Heart Abstract */}
+                    <path d="M35 260 Q45 250 55 260 T75 260" transform="rotate(45 45 265)" strokeWidth="1" />
+                </g>
+            </svg>
+
+            {/* Logo Section */}
+            <div className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-3 z-10">
+                {/* Golden Cross Logo */}
+                <div className="w-12 h-12 md:w-16 md:h-16 relative drop-shadow-md">
+                    <svg viewBox="0 0 100 100" fill="url(#goldGradient)">
+                        <defs>
+                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#F8E7B6" />
+                                <stop offset="30%" stopColor="#D0AB6A" />
+                                <stop offset="70%" stopColor="#9C7C38" />
+                                <stop offset="100%" stopColor="#F8E7B6" />
+                            </linearGradient>
+                        </defs>
+                        {/* Medical Cross shape with rounded edges */}
+                        <path d="M35 15 H65 V35 H85 V65 H65 V85 H35 V65 H15 V35 H35 V15 Z" filter="url(#dropShadow)" />
+                        {/* Dynamic Swoosh */}
+                        <path d="M10 65 Q 50 100 90 35" fill="none" stroke="url(#goldGradient)" strokeWidth="5" strokeLinecap="round" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-none text-white drop-shadow-sm">
+                        Desconto <span className="text-[#D0AB6A]">+</span> <span className="text-[#D0AB6A]">Saúde</span>
+                    </h1>
+                    <p className="text-[10px] md:text-xs tracking-wide text-gray-200 mt-1 font-light opacity-90">Seu parceiro em saúde e bem-estar.</p>
                 </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="relative p-6 bg-white min-h-[380px] flex flex-col items-center">
-                <BackgroundWatermark />
-                
-                {/* Card Number Badge */}
-                <div className="bg-gray-100 px-4 py-1 rounded-full border border-gray-200 mb-6 shadow-inner relative z-10">
-                    <p className="text-xs font-bold text-ds-vinho tracking-widest">CARTÃO Nº {cardNumber}</p>
+            {/* Chip (Simulated for Credit Card Look) */}
+            <div className="absolute top-28 left-8 w-12 h-9 bg-gradient-to-tr from-[#e0c388] to-[#bfa065] rounded-md opacity-90 border border-[#917646] shadow-sm hidden sm:block">
+                <div className="w-full h-full relative opacity-50">
+                    <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black"></div>
+                    <div className="absolute top-0 left-1/2 w-[1px] h-full bg-black"></div>
+                    <div className="absolute top-2 left-2 w-8 h-5 border border-black rounded-sm"></div>
                 </div>
+            </div>
 
-                {/* Central Emblem */}
-                <div className="w-24 h-24 mb-6 relative z-10">
-                    <MedicalCross />
-                </div>
-
-                {/* Dates Row */}
-                <div className="flex gap-4 w-full justify-center mb-6 relative z-10">
-                    <div className="bg-ds-vinho text-white px-3 py-1 rounded-md shadow text-[10px] font-bold">
-                        EMISSÃO: {issue}
-                    </div>
-                    <div className="bg-ds-vinho text-white px-3 py-1 rounded-md shadow text-[10px] font-bold">
-                        VÁLIDO: {expiry}
-                    </div>
-                </div>
-
-                {/* Name Block */}
-                <div className="w-full text-center mb-6 relative z-10">
-                    <div className="bg-ds-vinho text-white py-1 px-4 rounded-t-lg inline-block">
-                        <p className="text-[10px] font-bold uppercase tracking-widest">{role}</p>
-                    </div>
-                    <div className="bg-white border-2 border-ds-vinho rounded-lg p-3 shadow-sm -mt-[2px]">
-                        <p className="text-xl font-bold text-gray-800 uppercase leading-tight font-serif tracking-wide">{name}</p>
-                        
+            {/* Content Body */}
+            <div className="absolute bottom-6 left-6 right-6 md:bottom-8 md:left-8 md:right-8 z-10">
+                <div className="flex flex-col">
+                    {/* Role Label */}
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-bold text-[#D0AB6A] uppercase tracking-[0.15em] border border-[#D0AB6A] px-2 py-0.5 rounded shadow-sm bg-[#5c0416]/50 backdrop-blur-sm">
+                            {role}
+                        </span>
                         {role === 'DEPENDENTE' && holderName && (
-                            <div className="mt-2 pt-2 border-t border-gray-200">
-                                <p className="text-[8px] text-gray-500 uppercase tracking-wider">TITULAR RESPONSÁVEL</p>
-                                <p className="text-sm font-semibold text-gray-700 uppercase">{holderName}</p>
-                            </div>
+                            <span className="text-[10px] text-gray-300 uppercase tracking-wider font-medium truncate max-w-[200px]">
+                                Resp: {holderName.split(' ')[0]}
+                            </span>
                         )}
                     </div>
-                </div>
 
-                {/* Legal Text */}
-                <div className="text-[9px] text-center text-gray-500 leading-tight space-y-1 relative z-10 px-2">
-                    <p>Dependente autorizado a se beneficiar do desconto previsto em toda rede de credenciados.</p>
-                    <p className="font-bold text-ds-vinho">Válido mediante apresentação de documento de identidade.</p>
-                </div>
-            </div>
+                    {/* Name - Credit Card Style (Embossed look simulated by font) */}
+                    <h2 className="text-xl md:text-2xl font-medium text-white uppercase tracking-widest drop-shadow-md truncate w-full" style={{ fontFamily: '"Courier New", Courier, monospace', letterSpacing: '0.05em', textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+                        {name}
+                    </h2>
+                    
+                    <div className="flex justify-between items-end mt-1">
+                        {/* Card Number */}
+                        <p className="text-sm md:text-base text-gray-300 font-mono tracking-widest opacity-80" style={{ textShadow: '1px 1px 1px rgba(0,0,0,0.5)' }}>
+                            {formattedCardNumber}
+                        </p>
 
-            {/* Footer with Contact */}
-            <div className="bg-ds-vinho p-3">
-                <div className="flex flex-col gap-2">
-                    <div className="flex justify-center gap-3">
-                        <a href="#" className="flex items-center gap-1.5 bg-[#25D366] text-white text-[10px] font-bold px-2 py-1 rounded shadow hover:bg-opacity-90">
-                            <WhatsAppIcon /> 53 9 9156 - 0861
-                        </a>
-                        <a href="#" className="flex items-center gap-1.5 bg-[#1877F2] text-white text-[10px] font-bold px-2 py-1 rounded shadow hover:bg-opacity-90">
-                            <FacebookIcon /> @Descontsaude
-                        </a>
+                        {/* Bottom Right Year */}
+                        <div className="text-right">
+                            <p className="text-sm font-bold text-[#D0AB6A] tracking-wider drop-shadow-sm">CARTÃO {validYear}</p>
+                        </div>
                     </div>
-                    <p className="text-[8px] text-white/60 text-center font-mono mt-1">CNPJ: 09.371.421/0001-01 • Pedro Osório/RS</p>
                 </div>
             </div>
         </div>
