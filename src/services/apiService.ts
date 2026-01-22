@@ -1,686 +1,561 @@
 
-import { MOCK_CLIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, MOCK_RATINGS, MOCK_SERVICE_HISTORY, MOCK_REMINDERS, saveReminders, MOCK_UPDATE_REQUESTS, MOCK_PLAN_CONFIG, MOCK_FINANCIAL_RECORDS } from './mockData';
-import type { Client, Payment, Doctor, Rating, ServiceHistoryItem, Dependent, Reminder, UpdateApprovalRequest, PlanConfig, CourierFinancialRecord, ActivityLog } from '../types';
+import { supabase } from '../supabase';
+import type { 
+    Client, Dependent, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, 
+    UpdateApprovalRequest, PlanConfig, CourierFinancialRecord, AppNotification 
+} from '../types';
+import { DEFAULT_PLAN_CONFIG } from './mockData';
 
-// Simulate API delay
-const apiDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
+// --- SISTEMA DE FEEDBACK CENTRALIZADO ---
 
-// --- Helper for Logging ---
-const createLog = (action: ActivityLog['action'], description: string, details?: string[]): ActivityLog => ({
-    id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    action,
-    description,
-    details,
-    timestamp: new Date().toISOString(),
-    author: 'Administrador' // Hardcoded for now, could be dynamic based on auth context in a real app
-});
-
-const detectChanges = (oldData: any, newData: any): string[] => {
-    const changes: string[] = [];
-    const fieldsToIgnore = ['id', 'contractNumber', 'dependents', 'logs', 'deliveryStatus'];
-    
-    for (const key in newData) {
-        if (fieldsToIgnore.includes(key)) continue;
-        if (JSON.stringify(oldData[key]) !== JSON.stringify(newData[key])) {
-            changes.push(`${key}: "${oldData[key] || ''}" → "${newData[key] || ''}"`);
-        }
+const showFeedback = (message: string, type: 'success' | 'error' | 'info') => {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    if (type === 'error') {
+        alert(`❌ Ocorreu um erro:\n${message}`);
     }
-    return changes;
 };
 
-// ... (existing client, dependent, payment, doctor, reminder services - KEEP THEM) ...
-// --- Client Services ---
+// --- HELPER PARA GERAR UUID ---
+const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
+// --- HELPERS DE MAPEAMENTO ---
+
+const mapDependentFromDb = (d: any): Dependent => ({
+    id: d.id,
+    name: d.name,
+    relationship: d.relationship,
+    cpf: d.cpf,
+    birthDate: d.birth_date,
+    status: d.status,
+    registrationDate: d.registration_date,
+    inactivationDate: d.inactivation_date,
+    lastSeen: d.last_seen
+});
+
+const mapClientFromDb = (c: any): Client => ({
+    id: c.id,
+    contractNumber: c.contract_number,
+    name: c.name,
+    cpf: c.cpf,
+    birthDate: c.birth_date,
+    gender: c.gender,
+    phone: c.phone,
+    whatsapp: c.whatsapp,
+    email: c.email,
+    cep: c.cep,
+    address: c.address,
+    addressNumber: c.address_number,
+    neighborhood: c.neighborhood,
+    city: c.city,
+    plan: c.plan,
+    monthlyFee: c.monthly_fee,
+    registrationFee: c.registration_fee,
+    paymentDueDateDay: c.payment_due_date_day,
+    promotion: c.promotion,
+    salesRep: c.sales_rep,
+    status: c.status,
+    dependents: c.dependents ? c.dependents.map(mapDependentFromDb) : [],
+    annotations: c.annotations,
+    deliveryStatus: c.delivery_status,
+    logs: c.logs || [],
+    lastSeen: c.last_seen
+});
+
+const mapClientToDb = (c: Partial<Client>) => {
+    const dbObj: any = { ...c };
+    if (c.contractNumber) dbObj.contract_number = c.contractNumber;
+    if (c.birthDate) dbObj.birth_date = c.birthDate;
+    if (c.addressNumber) dbObj.address_number = c.addressNumber;
+    if (c.monthlyFee !== undefined) dbObj.monthly_fee = c.monthlyFee;
+    if (c.registrationFee !== undefined) dbObj.registration_fee = c.registrationFee;
+    if (c.paymentDueDateDay) dbObj.payment_due_date_day = c.paymentDueDateDay;
+    if (c.salesRep) dbObj.sales_rep = c.salesRep;
+    if (c.deliveryStatus) dbObj.delivery_status = c.deliveryStatus;
+    
+    delete dbObj.contractNumber;
+    delete dbObj.birthDate;
+    delete dbObj.addressNumber;
+    delete dbObj.monthlyFee;
+    delete dbObj.registrationFee;
+    delete dbObj.paymentDueDateDay;
+    delete dbObj.salesRep;
+    delete dbObj.deliveryStatus;
+    delete dbObj.dependents; 
+    delete dbObj.logs; 
+    delete dbObj.lastSeen;
+    
+    return dbObj;
+};
+
+// --- CLIENT SERVICES ---
 
 export const getClients = async (): Promise<Client[]> => {
-  await apiDelay(500);
-  return JSON.parse(JSON.stringify(MOCK_CLIENTS)); // Return a deep copy
+    try {
+        const { data, error } = await supabase.from('clients').select('*, dependents(*)');
+        if (error) throw error;
+        return data.map(mapClientFromDb);
+    } catch (error: any) {
+        showFeedback("Falha ao carregar clientes: " + error.message, 'error');
+        return [];
+    }
 };
 
 export const getClientById = async (id: string): Promise<Client | undefined> => {
-  await apiDelay(300);
-  const client = MOCK_CLIENTS.find(c => c.id === id);
-  return client ? JSON.parse(JSON.stringify(client)) : undefined;
+    try {
+        const { data, error } = await supabase.from('clients').select('*, dependents(*)').eq('id', id).single();
+        if (error) throw error;
+        return mapClientFromDb(data);
+    } catch (error: any) {
+        showFeedback("Falha ao carregar detalhes: " + error.message, 'error');
+        return undefined;
+    }
 };
 
-export const addClient = async (clientData: Omit<Client, 'id' | 'contractNumber'>): Promise<Client> => {
-    await apiDelay(700);
-    const timestamp = Date.now();
-    const newClient: Client = {
-        ...clientData,
-        id: `client${timestamp}`,
-        contractNumber: `019${String(timestamp).slice(-8)}`,
-        // Automatically mark new clients for contract delivery
-        deliveryStatus: {
-            pending: true,
-            type: 'new_contract',
-            description: 'Entregar Contrato e Boas Vindas'
-        },
-        dependents: clientData.dependents.map((dep, index) => ({
-            ...dep,
-            id: `dep${Date.now()}${index}`,
-            status: 'active',
-            registrationDate: new Date().toISOString(),
-        })),
-        logs: [createLog('create', 'Cliente cadastrado no sistema')]
-    };
-    MOCK_CLIENTS.push(newClient);
-    return JSON.parse(JSON.stringify(newClient));
+export const addClient = async (clientData: Omit<Client, 'id' | 'contractNumber' | 'logs'>): Promise<Client> => {
+    try {
+        const newClientId = generateUUID();
+        const contractNumber = `019${String(Date.now()).slice(-8)}`;
+        const dbClient = mapClientToDb({ ...clientData, id: newClientId, contractNumber });
+        const { error: clientError } = await supabase.from('clients').insert(dbClient);
+        if (clientError) throw clientError;
+        if (clientData.dependents && clientData.dependents.length > 0) {
+            const dependentsToInsert = clientData.dependents.map(dep => ({
+                id: generateUUID(),
+                client_id: newClientId,
+                name: dep.name,
+                relationship: dep.relationship || 'Dependente',
+                cpf: dep.cpf || '',
+                birth_date: dep.birthDate,
+                status: 'active',
+                registration_date: new Date().toISOString()
+            }));
+            await supabase.from('dependents').insert(dependentsToInsert);
+        }
+        return getClientById(newClientId) as Promise<Client>;
+    } catch (error: any) {
+        showFeedback("Erro ao adicionar cliente: " + error.message, 'error');
+        throw error;
+    }
 };
 
 export const updateClient = async (id: string, updatedData: Client): Promise<Client> => {
-    await apiDelay(500);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === id);
-    if (clientIndex === -1) {
-        throw new Error('Client not found');
+    try {
+        const dbClient = mapClientToDb(updatedData);
+        const { data, error } = await supabase.from('clients').update(dbClient).eq('id', id).select().single();
+        if (error) throw error;
+        return mapClientFromDb(data);
+    } catch (error: any) {
+        showFeedback("Erro ao atualizar cliente: " + error.message, 'error');
+        throw error;
     }
-    
-    const oldClient = MOCK_CLIENTS[clientIndex];
-    const changes = detectChanges(oldClient, updatedData);
-    
-    let newLogs = oldClient.logs || [];
-    if (changes.length > 0) {
-        newLogs.unshift(createLog('update', 'Dados cadastrais atualizados', changes));
-    }
-    
-    // Check for status change specifically
-    if (oldClient.status !== updatedData.status) {
-        const actionType = 'status_change';
-        const description = `Status alterado de ${oldClient.status} para ${updatedData.status}`;
-        newLogs.unshift(createLog(actionType, description));
-    }
-
-    MOCK_CLIENTS[clientIndex] = {
-        ...JSON.parse(JSON.stringify(updatedData)),
-        logs: newLogs
-    };
-    
-    return MOCK_CLIENTS[clientIndex];
 };
 
-// New function to manually set delivery status (e.g., for cards)
-export const requestDelivery = async (clientId: string, type: Client['deliveryStatus']['type'], description: string): Promise<Client> => {
-    await apiDelay(400);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) throw new Error("Client not found");
-
-    MOCK_CLIENTS[clientIndex].deliveryStatus = {
-        pending: true,
-        type,
-        description
-    };
-    
-    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_request', `Solicitação de entrega: ${description}`));
-    
-    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
+export const updateLastSeen = async (id: string, role: 'client' | 'dependent'): Promise<void> => {
+    const now = new Date().toISOString();
+    try {
+        if (role === 'client') {
+            await supabase.from('clients').update({ last_seen: now }).eq('id', id);
+        } else if (role === 'dependent') {
+            await supabase.from('dependents').update({ last_seen: now }).eq('id', id);
+        }
+    } catch (error) {
+        console.warn("Failed to update last seen:", error);
+    }
 };
 
 export const resetClientPassword = async (clientId: string): Promise<{ success: true }> => {
-    await apiDelay(500);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex !== -1) {
-        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('password_reset', 'Senha resetada manualmente pelo admin'));
-    }
-    console.log(`Password for client ${clientId} has been reset.`);
     return { success: true };
 };
 
-
-// --- Dependent Services ---
+// --- DEPENDENT SERVICES ---
 
 export const requestAddDependent = async (clientId: string, dependentData: Omit<Dependent, 'id' | 'status' | 'registrationDate' | 'inactivationDate'>): Promise<Client | null> => {
-    await apiDelay(600);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) return null;
-
-    const newDependent: Dependent = {
-        ...dependentData,
-        id: `dep${Date.now()}`,
-        status: 'pending',
-        registrationDate: new Date().toISOString(),
-    };
-    
-    MOCK_CLIENTS[clientIndex].dependents.push(newDependent);
-    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Solicitação de inclusão de dependente: ${newDependent.name}`));
-
-    // Create a reminder for the admin
-    await addReminder({
-        description: `Aprovar novo dependente "${newDependent.name}"`,
-        priority: 'medium',
-        clientId: clientId,
-        clientName: MOCK_CLIENTS[clientIndex].name
-    });
-
-    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
+    try {
+        const newId = generateUUID();
+        const { error: depError } = await supabase.from('dependents').insert({
+            id: newId,
+            client_id: clientId,
+            name: dependentData.name,
+            relationship: dependentData.relationship,
+            cpf: dependentData.cpf,
+            birth_date: dependentData.birthDate,
+            status: 'pending', 
+            registration_date: new Date().toISOString()
+        });
+        if (depError) throw depError;
+        const client = await getClientById(clientId);
+        if (client) {
+            await supabase.from('update_requests').insert({
+                id: generateUUID(),
+                client_id: clientId,
+                client_name: client.name,
+                requested_at: new Date().toISOString(),
+                status: 'pending',
+                request_type: 'new_dependent',
+                current_data: { phone: client.phone, whatsapp: client.whatsapp, address: client.address, addressNumber: client.addressNumber, neighborhood: client.neighborhood, city: client.city },
+                updates: {}, 
+                new_dependent_data: { ...dependentData, dependentId: newId }
+            });
+        }
+        return getClientById(clientId) as Promise<Client>;
+    } catch (error: any) {
+        showFeedback("Erro na solicitação de dependente: " + error.message, 'error');
+        return null;
+    }
 };
 
-// Admin action to add an active dependent directly
 export const addDependent = async (clientId: string, dependentData: Omit<Dependent, 'id' | 'inactivationDate'>): Promise<Client | null> => {
-    await apiDelay(600);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) return null;
-
-    const newDependent: Dependent = {
-        ...dependentData,
-        id: `dep${Date.now()}`,
-    };
-    
-    MOCK_CLIENTS[clientIndex].dependents.push(newDependent);
-    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente adicionado manualmente: ${newDependent.name} (${newDependent.status})`));
-
-    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
-};
-
-// New function to update existing dependent
-export const updateDependent = async (clientId: string, dependentId: string, dependentData: Partial<Omit<Dependent, 'id'>>): Promise<Client | null> => {
-    await apiDelay(500);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) return null;
-
-    const depIndex = MOCK_CLIENTS[clientIndex].dependents.findIndex(d => d.id === dependentId);
-    if (depIndex === -1) return null;
-
-    const oldData = MOCK_CLIENTS[clientIndex].dependents[depIndex];
-    MOCK_CLIENTS[clientIndex].dependents[depIndex] = { ...oldData, ...dependentData };
-
-    const changes = detectChanges(oldData, dependentData);
-    if (changes.length > 0) {
-        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente ${oldData.name} editado`, changes));
+    try {
+        const { error } = await supabase.from('dependents').insert({
+            id: generateUUID(),
+            client_id: clientId,
+            name: dependentData.name,
+            relationship: dependentData.relationship,
+            cpf: dependentData.cpf,
+            birth_date: dependentData.birthDate,
+            status: dependentData.status || 'active',
+            registration_date: dependentData.registrationDate || new Date().toISOString()
+        });
+        if (error) throw error;
+        return getClientById(clientId) as Promise<Client>;
+    } catch (error: any) {
+        showFeedback("Erro ao adicionar dependente: " + error.message, 'error');
+        return null;
     }
-
-    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
 };
 
-export const resetDependentPassword = async (clientId: string, dependentId: string): Promise<{ success: boolean }> => {
-    await apiDelay(500);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) return { success: false };
-
-    const dependent = MOCK_CLIENTS[clientIndex].dependents.find(d => d.id === dependentId);
-    if (!dependent) return { success: false };
-
-    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('password_reset', `Senha do dependente ${dependent.name} resetada manualmente`));
-    
-    console.log(`Password for dependent ${dependentId} has been reset.`);
-    return { success: true };
-};
-
-const updateDependentStatus = (clientId: string, dependentId: string, status: Dependent['status']): Client | null => {
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) return null;
-
-    const dependentIndex = MOCK_CLIENTS[clientIndex].dependents.findIndex(d => d.id === dependentId);
-    if (dependentIndex === -1) return null;
-
-    const depName = MOCK_CLIENTS[clientIndex].dependents[dependentIndex].name;
-    MOCK_CLIENTS[clientIndex].dependents[dependentIndex].status = status;
-    
-    if (status === 'inactive') {
-        MOCK_CLIENTS[clientIndex].dependents[dependentIndex].inactivationDate = new Date().toISOString();
-    } else {
-         delete MOCK_CLIENTS[clientIndex].dependents[dependentIndex].inactivationDate;
+export const updateDependent = async (clientId: string, dependentId: string, data: Partial<Omit<Dependent, 'id'>>): Promise<Client | null> => {
+    try {
+        const dbData: any = { ...data };
+        if (data.birthDate) dbData.birth_date = data.birthDate;
+        delete dbData.birthDate;
+        const { error } = await supabase.from('dependents').update(dbData).eq('id', dependentId);
+        if (error) throw error;
+        return getClientById(clientId) as Promise<Client>;
+    } catch (error: any) {
+        showFeedback("Erro ao atualizar dependente: " + error.message, 'error');
+        return null;
     }
+};
 
-    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente ${depName} alterado para ${status}`));
+export const resetDependentPassword = async (clientId: string, dependentId: string): Promise<void> => {};
 
-    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
-}
+const updateDependentStatusFn = async (clientId: string, dependentId: string, status: Dependent['status']): Promise<Client | null> => {
+    try {
+        const updates: any = { status };
+        updates.inactivation_date = status === 'inactive' ? new Date().toISOString() : null;
+        const { error } = await supabase.from('dependents').update(updates).eq('id', dependentId);
+        if (error) throw error;
+        return getClientById(clientId) as Promise<Client>;
+    } catch (error: any) {
+        showFeedback(`Erro ao mudar status: ` + error.message, 'error');
+        return null;
+    }
+};
 
 export const approveDependent = async (clientId: string, dependentId: string): Promise<Client | null> => {
-    await apiDelay(400);
-    return updateDependentStatus(clientId, dependentId, 'active');
+    const updated = await updateDependentStatusFn(clientId, dependentId, 'active');
+    if (updated) {
+        await supabase.from('update_requests').update({ status: 'approved' }).eq('client_id', clientId).eq('request_type', 'new_dependent').eq('status', 'pending');
+    }
+    return updated;
 };
 
 export const rejectDependent = async (clientId: string, dependentId: string): Promise<Client | null> => {
-    await apiDelay(400);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) return null;
-
-    const dependent = MOCK_CLIENTS[clientIndex].dependents.find(d => d.id === dependentId);
-    const depName = dependent ? dependent.name : 'Unknown';
-
-    MOCK_CLIENTS[clientIndex].dependents = MOCK_CLIENTS[clientIndex].dependents.filter(d => d.id !== dependentId);
-    
-    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Solicitação de dependente REJEITADA: ${depName}`));
-
-    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
+    const updated = await updateDependentStatusFn(clientId, dependentId, 'rejected');
+    if (updated) {
+        await supabase.from('update_requests').update({ status: 'rejected' }).eq('client_id', clientId).eq('request_type', 'new_dependent').eq('status', 'pending');
+    }
+    return updated;
 };
 
-export const inactivateDependent = async (clientId: string, dependentId: string): Promise<Client | null> => {
-    await apiDelay(400);
-    return updateDependentStatus(clientId, dependentId, 'inactive');
-}
+export const inactivateDependent = async (clientId: string, dependentId: string): Promise<Client | null> => updateDependentStatusFn(clientId, dependentId, 'inactive');
+export const reactivateDependent = async (clientId: string, dependentId: string): Promise<Client | null> => updateDependentStatusFn(clientId, dependentId, 'active');
 
-export const reactivateDependent = async (clientId: string, dependentId: string): Promise<Client | null> => {
-    await apiDelay(400);
-    return updateDependentStatus(clientId, dependentId, 'active');
-}
-
-
-// --- Payment Services ---
+// --- PAYMENT SERVICES ---
 
 export const getPaymentsByClientId = async (clientId: string): Promise<Payment[]> => {
-  await apiDelay(400);
-  return JSON.parse(JSON.stringify(MOCK_PAYMENTS.filter(p => p.clientId === clientId)));
+    const { data } = await supabase.from('payments').select('*').eq('client_id', clientId);
+    return (data || []).map(p => ({
+        id: p.id, clientId: p.client_id, amount: p.amount, month: p.month, year: p.year, dueDate: p.due_date, status: p.status, observation: p.observation
+    }));
 };
 
 export const getAllPayments = async (): Promise<Payment[]> => {
-    await apiDelay(600);
-    return JSON.parse(JSON.stringify(MOCK_PAYMENTS));
-}
+    const { data } = await supabase.from('payments').select('*');
+    return (data || []).map(p => ({
+        id: p.id, clientId: p.client_id, amount: p.amount, month: p.month, year: p.year, dueDate: p.due_date, status: p.status, observation: p.observation
+    }));
+};
 
-const monthMap: Record<string, number> = { "Janeiro": 0, "Fevereiro": 1, "Março": 2, "Abril": 3, "Maio": 4, "Junho": 5, "Julho": 6, "Agosto": 7, "Setembro": 8, "Outubro": 9, "Novembro": 10, "Dezembro": 11 };
-
-export const generateNewInvoice = async (clientId: string, month: string, year: number): Promise<Payment> => {
-    await apiDelay(1000);
-    const client = MOCK_CLIENTS.find(c => c.id === clientId);
-    if (!client) throw new Error("Client not found");
-
-    const monthIndex = monthMap[month];
-    if (monthIndex === undefined) throw new Error("Invalid month name");
-
-    const newPayment: Payment = {
-        id: `pay${Date.now()}`,
-        clientId,
-        amount: client.monthlyFee,
-        month,
-        year,
-        dueDate: new Date(year, monthIndex, client.paymentDueDateDay).toISOString(),
+export const generateNewInvoice = async (data: any): Promise<Payment> => {
+    const newId = generateUUID();
+    const payload = {
+        id: newId,
+        client_id: data.clientId,
+        amount: data.amount,
+        month: data.month,
+        year: data.year,
+        due_date: data.dueDate || new Date().toISOString(),
         status: 'pending',
+        observation: data.observation || ''
     };
-    MOCK_PAYMENTS.push(newPayment);
-    return JSON.parse(JSON.stringify(newPayment));
+    const { data: inserted, error } = await supabase.from('payments').insert(payload).select().single();
+    if (error) throw error;
+    return {
+        id: inserted.id, clientId: inserted.client_id, amount: inserted.amount, month: inserted.month, year: inserted.year, dueDate: inserted.due_date, status: inserted.status, observation: inserted.observation
+    };
 };
 
-export const generateCustomCharge = async (clientId: string, amount: number, description: string): Promise<Payment> => {
-    await apiDelay(800);
-    const client = MOCK_CLIENTS.find(c => c.id === clientId);
-    if (!client) throw new Error("Client not found");
+export const updatePaymentStatus = async (id: string, status: string) => {
+    const { data, error } = await supabase.from('payments').update({ status }).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+};
 
-    const now = new Date();
-    const dueDate = new Date(now);
-    dueDate.setDate(now.getDate() + 10); // Due in 10 days
+export const updatePayment = async (id: string, updates: any) => {
+    const { data, error } = await supabase.from('payments').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+};
 
-    const newPayment: Payment = {
-        id: `pay${Date.now()}`,
-        clientId,
-        amount,
-        month: description,
-        year: now.getFullYear(),
-        dueDate: dueDate.toISOString(),
+export const deletePayment = async (id: string) => {
+    const { error } = await supabase.from('payments').delete().eq('id', id);
+    if (error) throw error;
+};
+
+export const updatePaymentInvoiceStatus = async (id: string, status: string) => {
+    await supabase.from('payments').update({ invoice_status: status }).eq('id', id);
+};
+
+export const generateAnnualCarnet = async (data: any) => {
+    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const startIndex = months.indexOf(data.startMonth || "Janeiro");
+    const carnetMonths = months.slice(startIndex === -1 ? 0 : startIndex);
+    
+    const inserts = carnetMonths.map((m, i) => ({
+        id: generateUUID(),
+        client_id: data.clientId,
+        amount: data.amount,
+        month: m,
+        year: data.year,
+        due_date: new Date(data.year, startIndex + i, data.dueDay || 20).toISOString(),
         status: 'pending',
-    };
-    MOCK_PAYMENTS.push(newPayment);
-    return JSON.parse(JSON.stringify(newPayment));
+        observation: data.observation || ''
+    }));
+    await supabase.from('payments').insert(inserts);
 };
 
-export const updatePaymentStatus = async (paymentId: string, status: Payment['status']): Promise<Payment | null> => {
-    await apiDelay(400);
-    const paymentIndex = MOCK_PAYMENTS.findIndex(p => p.id === paymentId);
-    if (paymentIndex === -1) {
-        console.error(`Payment with id ${paymentId} not found.`);
-        return null;
-    }
-
-    MOCK_PAYMENTS[paymentIndex].status = status;
-    
-    return JSON.parse(JSON.stringify(MOCK_PAYMENTS[paymentIndex]));
-};
-
-export const updatePaymentInvoiceStatus = async (paymentId: string, status: 'pending' | 'generated'): Promise<Payment | null> => {
-    await apiDelay(400);
-    const paymentIndex = MOCK_PAYMENTS.findIndex(p => p.id === paymentId);
-    if (paymentIndex === -1) {
-        console.error(`Payment with id ${paymentId} not found.`);
-        return null;
-    }
-
-    MOCK_PAYMENTS[paymentIndex].invoiceStatus = status;
-    
-    return JSON.parse(JSON.stringify(MOCK_PAYMENTS[paymentIndex]));
-};
-
-
-const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-
-export const generateAnnualCarnet = async (clientId: string, year: number): Promise<Payment[]> => {
-    await apiDelay(1500);
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === clientId);
-    if (clientIndex === -1) throw new Error("Client not found");
-    const client = MOCK_CLIENTS[clientIndex];
-
-    const existingPaymentsForYear = MOCK_PAYMENTS.filter(p => p.clientId === clientId && p.year === year);
-    const existingMonths = existingPaymentsForYear.map(p => p.month);
-    
-    const newPayments: Payment[] = [];
-
-    for (const month of months) {
-        if (!existingMonths.includes(month)) {
-            const monthIndex = monthMap[month];
-            const newPayment: Payment = {
-                id: `pay-${client.id}-${year}-${month}`,
-                clientId,
-                amount: client.monthlyFee,
-                month,
-                year,
-                dueDate: new Date(year, monthIndex, client.paymentDueDateDay).toISOString(),
-                status: 'pending',
-            };
-            newPayments.push(newPayment);
-        }
-    }
-
-    MOCK_PAYMENTS.push(...newPayments);
-
-    // Automatically mark client for Carnet delivery
-    MOCK_CLIENTS[clientIndex].deliveryStatus = {
-        pending: true,
-        type: 'carnet',
-        description: `Entregar Carnê ${year}`
-    };
-    
-    MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-    MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_request', `Carnê ${year} gerado e marcado para entrega.`));
-
-    return JSON.parse(JSON.stringify(newPayments));
-};
-
-
-// --- Doctor Services ---
+// --- DOCTOR SERVICES ---
 
 export const getDoctors = async (): Promise<Doctor[]> => {
-  await apiDelay(200);
-  return JSON.parse(JSON.stringify(MOCK_DOCTORS));
+    const { data } = await supabase.from('doctors').select('*');
+    return (data || []).map(d => ({ ...d, priceWithPlan: d.price_with_plan, priceWithoutPlan: d.price_without_plan }));
 };
 
-export const addDoctor = async (doctorData: Omit<Doctor, 'id'>): Promise<Doctor> => {
-    await apiDelay(500);
-    const newDoctor: Doctor = {
-        ...doctorData,
-        id: `doc${Date.now()}`,
-    };
-    MOCK_DOCTORS.push(newDoctor);
-    return JSON.parse(JSON.stringify(newDoctor));
+export const addDoctor = async (d: any) => {
+    const { data, error } = await supabase.from('doctors').insert({ ...d, id: generateUUID() }).select().single();
+    if (error) throw error;
+    return data;
 };
 
-export const updateDoctor = async (id: string, updatedData: Doctor): Promise<Doctor> => {
-    await apiDelay(400);
-    const docIndex = MOCK_DOCTORS.findIndex(d => d.id === id);
-    if (docIndex === -1) {
-        throw new Error('Doctor not found');
-    }
-    MOCK_DOCTORS[docIndex] = JSON.parse(JSON.stringify(updatedData));
-    return MOCK_DOCTORS[docIndex];
+export const updateDoctor = async (id: string, d: any) => {
+    const { data, error } = await supabase.from('doctors').update(d).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
 };
 
-export const deleteDoctor = async (id: string): Promise<{ success: true }> => {
-    await apiDelay(300);
-    const docIndex = MOCK_DOCTORS.findIndex(d => d.id === id);
-    if (docIndex === -1) {
-        throw new Error('Doctor not found');
-    }
-    MOCK_DOCTORS.splice(docIndex, 1);
+export const deleteDoctor = async (id: string) => {
+    await supabase.from('doctors').delete().eq('id', id);
     return { success: true };
 };
 
-// --- Reminder Services ---
+// --- OTHER SERVICES ---
 
-export const getReminders = async (): Promise<Reminder[]> => {
-  await apiDelay(300);
-  return JSON.parse(JSON.stringify(MOCK_REMINDERS));
+export const getAllRatings = async (): Promise<Rating[]> => {
+    const { data } = await supabase.from('ratings').select('*, clients(name), doctors(name, specialty)');
+    return (data || []).map(r => ({
+        id: r.id, clientId: r.client_id, doctorId: r.doctor_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+        clientName: r.clients?.name, doctorName: r.doctors?.name, doctorSpecialty: r.doctors?.specialty
+    }));
 };
-
-export const addReminder = async (reminderData: Omit<Reminder, 'id' | 'createdAt' | 'status'>): Promise<Reminder> => {
-    await apiDelay(500);
-    const newReminder: Reminder = {
-        ...reminderData,
-        id: `rem${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        status: 'pending',
-    };
-    MOCK_REMINDERS.unshift(newReminder);
-    saveReminders();
-    return JSON.parse(JSON.stringify(newReminder));
-};
-
-export const updateReminderStatus = async (id: string, status: Reminder['status']): Promise<Reminder | null> => {
-    await apiDelay(400);
-    const reminderIndex = MOCK_REMINDERS.findIndex(r => r.id === id);
-    if (reminderIndex === -1) return null;
-
-    MOCK_REMINDERS[reminderIndex].status = status;
-    saveReminders();
-    return JSON.parse(JSON.stringify(MOCK_REMINDERS[reminderIndex]));
-};
-
-export const deleteReminder = async (id: string): Promise<{ success: true }> => {
-    await apiDelay(300);
-    const initialLength = MOCK_REMINDERS.length;
-    let indexToDelete = -1;
-    for(let i = 0; i < MOCK_REMINDERS.length; i++) {
-        if(MOCK_REMINDERS[i].id === id) {
-            indexToDelete = i;
-            break;
-        }
-    }
-    
-    if (indexToDelete === -1) {
-        throw new Error('Reminder not found');
-    }
-    MOCK_REMINDERS.splice(indexToDelete, 1);
-    saveReminders();
-    return { success: true };
-};
-
-
-// --- Other Services ---
 
 export const getRatingsByClientId = async (clientId: string): Promise<Rating[]> => {
-  await apiDelay(300);
-  return JSON.parse(JSON.stringify(MOCK_RATINGS.filter(r => r.clientId === clientId)));
+    const { data } = await supabase.from('ratings').select('*').eq('client_id', clientId);
+    return (data || []).map(r => ({ id: r.id, clientId: r.client_id, doctorId: r.doctor_id, score: r.score, comment: r.comment, createdAt: r.created_at }));
+};
+
+export const addRating = async (r: any) => {
+    await supabase.from('ratings').insert({ id: generateUUID(), client_id: r.clientId, doctor_id: r.doctorId, score: r.score, comment: r.comment });
 };
 
 export const getServiceHistoryByClientId = async (clientId: string): Promise<ServiceHistoryItem[]> => {
-  await apiDelay(500);
-  return JSON.parse(JSON.stringify(MOCK_SERVICE_HISTORY.filter(sh => sh.clientId === clientId)));
+    const { data } = await supabase.from('service_history').select('*').eq('client_id', clientId);
+    return (data || []);
 };
 
+export const getReminders = async (): Promise<Reminder[]> => {
+    const { data } = await supabase.from('reminders').select('*');
+    return (data || []).map(r => ({ id: r.id, description: r.description, priority: r.priority, status: r.status, clientId: r.client_id, clientName: r.client_name, createdAt: r.created_at }));
+};
 
-// --- Update Request Services ---
+export const addReminder = async (r: any) => {
+    const { data, error } = await supabase.from('reminders').insert({
+        id: generateUUID(), description: r.description, priority: r.priority, client_id: r.clientId, client_name: r.clientName, status: 'pending'
+    }).select().single();
+    if (error) throw error;
+    return data;
+};
+
+export const updateReminderStatus = async (id: string, status: string) => {
+    await supabase.from('reminders').update({ status }).eq('id', id);
+};
+
+export const deleteReminder = async (id: string) => {
+    await supabase.from('reminders').delete().eq('id', id);
+};
 
 export const getUpdateRequests = async (): Promise<UpdateApprovalRequest[]> => {
-    await apiDelay(300);
-    return JSON.parse(JSON.stringify(MOCK_UPDATE_REQUESTS));
+    const { data } = await supabase.from('update_requests').select('*, clients(name)');
+    return (data || []).map(r => ({
+        id: r.id, 
+        clientId: r.client_id, 
+        clientName: r.client_name || (r.clients && (r.clients as any).name) || 'Cliente', 
+        requestedAt: r.requested_at, 
+        status: r.status, 
+        requestType: r.request_type,
+        updates: r.updates || {}, 
+        currentData: r.current_data || {}, 
+        newDependentData: r.new_dependent_data, 
+        cardRequestData: r.card_request_data,
+        deliveryNote: r.delivery_note, 
+        signature: r.signature,        
+        cancellationReason: r.new_dependent_data 
+    }));
 };
 
-export const submitUpdateRequest = async (
-    clientId: string, 
-    currentData: UpdateApprovalRequest['currentData'],
-    updates: UpdateApprovalRequest['updates'],
-    requestType: UpdateApprovalRequest['requestType'] = 'update',
-    payload?: string | UpdateApprovalRequest['newDependentData'] | UpdateApprovalRequest['cardRequestData'],
-    deliveryNote?: string, // Optional delivery note
-    signature?: string // Optional signature (base64)
-): Promise<UpdateApprovalRequest> => {
-    await apiDelay(700);
-    const client = MOCK_CLIENTS.find(c => c.id === clientId);
-    if (!client) throw new Error("Client not found");
-
-    const newRequest: UpdateApprovalRequest = {
-        id: `update-${Date.now()}`,
-        clientId,
-        clientName: client.name,
-        requestedAt: new Date().toISOString(),
-        status: 'pending',
-        requestType,
-        currentData,
-        updates,
-        deliveryNote,
-        signature // Add signature to request
+export const submitUpdateRequest = async (clientId: string, clientName: string, currentData: any, updates: any, type: string, extra: any, note: any, sig: any) => {
+    const payload: any = {
+        id: generateUUID(), 
+        client_id: clientId, 
+        client_name: clientName, 
+        requested_at: new Date().toISOString(), 
+        status: 'pending', 
+        request_type: type,
+        current_data: currentData, 
+        updates, 
+        delivery_note: note, 
+        signature: sig
     };
+    if (type === 'card_request') payload.card_request_data = extra;
+    else if (type === 'new_dependent' || type === 'cancellation') payload.new_dependent_data = extra;
+    else payload.new_dependent_data = extra;
 
-    if ((requestType === 'cancellation' || requestType === 'delivery_failed') && typeof payload === 'string') {
-        // payload acts as cancellation reason OR delivery failure reason
-        if(requestType === 'cancellation') newRequest.cancellationReason = payload;
-    } else if (requestType === 'new_dependent') {
-        newRequest.newDependentData = payload as UpdateApprovalRequest['newDependentData'];
-    } else if (requestType === 'card_request') {
-        newRequest.cardRequestData = payload as UpdateApprovalRequest['cardRequestData'];
+    const { error } = await supabase.from('update_requests').insert(payload);
+    if (error) {
+        showFeedback("Falha ao registrar solicitação: " + error.message, 'error');
+        throw error;
     }
-
-    MOCK_UPDATE_REQUESTS.unshift(newRequest);
-    return JSON.parse(JSON.stringify(newRequest));
 };
 
-export const deletePendingRequestByClientId = async (clientId: string): Promise<{ success: true }> => {
-    await apiDelay(400);
-    const indexToDelete = MOCK_UPDATE_REQUESTS.findIndex(r => r.clientId === clientId && r.status === 'pending');
-    
-    if (indexToDelete !== -1) {
-        MOCK_UPDATE_REQUESTS.splice(indexToDelete, 1);
-    }
-    
-    return { success: true };
+export const approveUpdateRequest = async (id: string) => {
+    await supabase.from('update_requests').update({ status: 'approved' }).eq('id', id);
 };
 
-export const approveUpdateRequest = async (requestId: string): Promise<Client | null> => {
-    await apiDelay(800);
-    const requestIndex = MOCK_UPDATE_REQUESTS.findIndex(r => r.id === requestId);
-    if (requestIndex === -1) throw new Error("Request not found");
-
-    const request = MOCK_UPDATE_REQUESTS[requestIndex];
-    const clientIndex = MOCK_CLIENTS.findIndex(c => c.id === request.clientId);
-    
-    if (clientIndex === -1) {
-        MOCK_UPDATE_REQUESTS[requestIndex].status = 'rejected';
-        return null;
-    }
-
-    // Add log for Delivery Note if present
-    if (request.deliveryNote) {
-        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', `Observação do Entregador: ${request.deliveryNote}`));
-    }
-    
-    // Add log if signature present (Proof of visit)
-    if (request.signature) {
-        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', `Visita confirmada com assinatura digital.`));
-    }
-
-    if (request.requestType === 'cancellation') {
-        MOCK_CLIENTS[clientIndex].status = 'inactive';
-        MOCK_CLIENTS[clientIndex].annotations += `\n[CANCELAMENTO] Solicitado em ${new Date(request.requestedAt).toLocaleDateString()}. Motivo: ${request.cancellationReason || 'Não informado'}. Aprovado em ${new Date().toLocaleDateString()}.`;
-        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('status_change', 'Cliente CANCELADO (Solicitação do Entregador aprovada)'));
-    } else if (request.requestType === 'delivery_failed') {
-        // Delivery failed logic
-        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-        MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_attempt', `Tentativa de entrega falhou: Ausente/Não Encontrado`));
-        // Important: We do NOT clear the deliveryStatus.pending flag here, so it remains in the route for next time.
-    } else if (request.requestType === 'new_dependent') {
-        if (request.newDependentData) {
-            MOCK_CLIENTS[clientIndex].dependents.push({
-                id: `dep-${Date.now()}`,
-                name: request.newDependentData.name,
-                cpf: request.newDependentData.cpf,
-                birthDate: request.newDependentData.birthDate,
-                relationship: request.newDependentData.relationship,
-                status: 'pending', // Adm needs to contact client first, so keeps as pending in client list but approve request
-                registrationDate: new Date().toISOString()
-            });
-            MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-            MOCK_CLIENTS[clientIndex].logs.unshift(createLog('dependent_action', `Dependente solicitado pelo entregador adicionado (Pendente): ${request.newDependentData.name}`));
-        }
-    } else if (request.requestType === 'card_request') {
-        if (request.cardRequestData) {
-            MOCK_CLIENTS[clientIndex].deliveryStatus = {
-                pending: true,
-                type: 'card',
-                description: `Entregar Cartão para ${request.cardRequestData.personName} (${request.cardRequestData.role})`
-            };
-            MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-            MOCK_CLIENTS[clientIndex].logs.unshift(createLog('delivery_request', `Solicitação de cartão aprovada para ${request.cardRequestData.personName}`));
-        }
-    } else {
-        // Normal update
-        const changes = detectChanges(MOCK_CLIENTS[clientIndex], request.updates);
-        const updatedClientData = { ...MOCK_CLIENTS[clientIndex], ...request.updates };
-        MOCK_CLIENTS[clientIndex] = updatedClientData;
-        MOCK_CLIENTS[clientIndex].logs = MOCK_CLIENTS[clientIndex].logs || [];
-        if(changes.length > 0) {
-             MOCK_CLIENTS[clientIndex].logs.unshift(createLog('update', 'Dados atualizados via solicitação do entregador', changes));
-        }
-    }
-    
-    // Clear delivery status if update was successful/confirmed (ONLY if it wasn't a failed attempt)
-    if (request.requestType !== 'delivery_failed' && MOCK_CLIENTS[clientIndex].deliveryStatus?.pending) {
-        MOCK_CLIENTS[clientIndex].deliveryStatus = undefined;
-    }
-    
-    MOCK_UPDATE_REQUESTS[requestIndex].status = 'approved';
-
-    return JSON.parse(JSON.stringify(MOCK_CLIENTS[clientIndex]));
+export const rejectUpdateRequest = async (id: string) => {
+    await supabase.from('update_requests').update({ status: 'rejected' }).eq('id', id);
 };
 
-export const rejectUpdateRequest = async (requestId: string): Promise<UpdateApprovalRequest | null> => {
-    await apiDelay(400);
-    const requestIndex = MOCK_UPDATE_REQUESTS.findIndex(r => r.id === requestId);
-    if (requestIndex === -1) return null;
-
-    MOCK_UPDATE_REQUESTS[requestIndex].status = 'rejected';
-    return JSON.parse(JSON.stringify(MOCK_UPDATE_REQUESTS[requestIndex]));
+export const deletePendingRequestByClientId = async (clientId: string) => {
+    const { error } = await supabase.from('update_requests').delete().eq('client_id', clientId).eq('status', 'pending');
+    if (error) {
+        showFeedback("Falha ao reverter ação: " + error.message, 'error');
+        throw error;
+    }
 };
-
-// --- Plan Config Services ---
 
 export const getPlanConfig = async (): Promise<PlanConfig> => {
-    await apiDelay(200);
-    return JSON.parse(JSON.stringify(MOCK_PLAN_CONFIG));
+    const { data } = await supabase.from('plan_config').select('*').single();
+    return data ? {
+        individualPrice: data.individual_price, familySmallPrice: data.family_small_price, familyMediumPrice: data.family_medium_price,
+        familyLargePrice: data.family_large_price, extraDependentPrice: data.extra_dependent_price, finePercentage: data.fine_percentage, interestPercentage: data.interest_percentage
+    } : DEFAULT_PLAN_CONFIG;
 };
 
-export const updatePlanConfig = async (newConfig: PlanConfig): Promise<PlanConfig> => {
-    await apiDelay(400);
-    // Directly mutate MOCK_PLAN_CONFIG (imported from mockData) because it's a let variable there.
-    // In a real API, this would be a PUT request.
-    Object.assign(MOCK_PLAN_CONFIG, newConfig);
-    return JSON.parse(JSON.stringify(MOCK_PLAN_CONFIG));
-}
-
-// --- Courier Financial Services ---
+export const updatePlanConfig = async (c: PlanConfig) => {
+    const db = {
+        individual_price: c.individualPrice, family_small_price: c.familySmallPrice, family_medium_price: c.familyMediumPrice,
+        family_large_price: c.familyLargePrice, extra_dependent_price: c.extraDependentPrice, fine_percentage: c.finePercentage, interest_percentage: c.interestPercentage
+    };
+    await supabase.from('plan_config').upsert({ id: 1, ...db });
+};
 
 export const getCourierFinancialRecords = async (): Promise<CourierFinancialRecord[]> => {
-    await apiDelay(300);
-    return JSON.parse(JSON.stringify(MOCK_FINANCIAL_RECORDS));
-}
+    const { data } = await supabase.from('courier_records').select('*');
+    return (data || []).map(r => ({ id: r.id, date: r.date, deliveriesCount: r.deliveries_count, totalAmount: r.total_amount, status: r.status, paidAt: r.paid_at }));
+};
 
-export const createDailyFinancialRecord = async (deliveriesCount: number, rate: number = 1.90): Promise<CourierFinancialRecord> => {
-    await apiDelay(500);
-    const newRecord: CourierFinancialRecord = {
-        id: `fin-${Date.now()}`,
-        date: new Date().toISOString(),
-        deliveriesCount,
-        totalAmount: deliveriesCount * rate,
-        status: 'pending'
+export const createDailyFinancialRecord = async (count: number, price: number) => {
+    await supabase.from('courier_records').insert({ id: generateUUID(), date: new Date().toISOString(), deliveries_count: count, total_amount: count * price, status: 'pending' });
+};
+
+export const markFinancialRecordAsPaid = async (id: string) => {
+    await supabase.from('courier_records').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', id);
+};
+
+export const requestDelivery = async (clientId: string, type: string, desc: string): Promise<Client> => {
+    const { data, error } = await supabase.from('clients').update({ delivery_status: { pending: true, type, description: desc } }).eq('id', clientId).select().single();
+    if (error) throw error;
+    return mapClientFromDb(data);
+};
+
+export const getNotifications = async (): Promise<AppNotification[]> => {
+    const { data, error } = await supabase.from('notifications').select('*');
+    if (error) return [];
+    return (data || []).map(n => ({
+        id: n.id, title: n.title, message: n.message, type: n.type, targetType: n.target_type || 'all',
+        targetValue: n.target_value, imageUrl: n.image_url, expiresAt: n.expires_at, createdAt: n.created_at, readBy: n.read_by || []
+    }));
+};
+
+export const createNotification = async (n: any) => {
+    const dbPayload = {
+        id: generateUUID(), title: n.title, message: n.message, type: n.type, target_type: n.targetType,
+        target_value: n.targetValue, image_url: n.imageUrl, expires_at: n.expiresAt, created_at: new Date().toISOString(), read_by: []
     };
-    MOCK_FINANCIAL_RECORDS.unshift(newRecord);
-    return JSON.parse(JSON.stringify(newRecord));
-}
+    const { error } = await supabase.from('notifications').insert(dbPayload);
+    if(error) throw error;
+};
 
-export const markFinancialRecordAsPaid = async (recordId: string): Promise<CourierFinancialRecord | null> => {
-    await apiDelay(400);
-    const index = MOCK_FINANCIAL_RECORDS.findIndex(r => r.id === recordId);
-    if (index === -1) return null;
+export const updateNotification = async (id: string, updates: Partial<AppNotification>): Promise<void> => {
+    const dbUpdates: any = {};
+    if (updates.title) dbUpdates.title = updates.title;
+    if (updates.message) dbUpdates.message = updates.message;
+    if (updates.type) dbUpdates.type = updates.type;
+    if (updates.targetType) dbUpdates.target_type = updates.targetType;
+    if (updates.targetValue) dbUpdates.target_value = updates.targetValue;
+    if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+    if (updates.expiresAt) dbUpdates.expires_at = updates.expiresAt;
+    const { error } = await supabase.from('notifications').update(dbUpdates).eq('id', id);
+    if (error) throw error;
+};
 
-    MOCK_FINANCIAL_RECORDS[index].status = 'paid';
-    MOCK_FINANCIAL_RECORDS[index].paidAt = new Date().toISOString();
-    
-    return JSON.parse(JSON.stringify(MOCK_FINANCIAL_RECORDS[index]));
-}
+export const deleteNotification = async (id: string) => {
+    await supabase.from('notifications').delete().eq('id', id);
+};
+
+export const markNotificationAsRead = async (id: string, userId: string) => {
+    const { data } = await supabase.from('notifications').select('read_by').eq('id', id).single();
+    if (data) {
+        const current = data.read_by || [];
+        if (!current.includes(userId)) await supabase.from('notifications').update({ read_by: [...current, userId] }).eq('id', id);
+    }
+};
