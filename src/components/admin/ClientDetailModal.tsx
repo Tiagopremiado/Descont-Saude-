@@ -63,7 +63,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
 
   useEffect(() => {
     setFormData(client);
-    setActiveTab('data'); // Reset to first tab when client changes
+    setActiveTab('data'); 
   }, [client]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -277,8 +277,6 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         <div className="min-h-[40vh] max-h-[60vh] overflow-y-auto pr-2">
             {activeTab === 'data' && (
                 <form id="client-detail-form" onSubmit={handleSave} className="space-y-4">
-                    {/* ... (rest of the form remains same) ... */}
-                    {/* Personal Data Section */}
                     <fieldset disabled={isFormSaving || !!dependentActionLoading}>
                     <div>
                         <div className="flex justify-between items-center mb-2">
@@ -370,7 +368,6 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                         </div>
                     </div>
                     <hr/>
-                    {/* Plan and Status Section */}
                     <div>
                         <h4 className="font-bold text-gray-700 mb-2">Plano e Status</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -394,15 +391,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                 </select>
                             </div>
                         </div>
-                        {formData.deliveryStatus && formData.deliveryStatus.pending && (
-                            <div className="mt-2 bg-yellow-50 p-2 rounded border border-yellow-200 text-sm text-yellow-800 flex items-center">
-                                <span className="mr-2">🚚</span>
-                                <strong>Entrega Pendente:</strong> {formData.deliveryStatus.description || formData.deliveryStatus.type}
-                            </div>
-                        )}
                     </div>
                     <hr/>
-                    {/* Annotations Section */}
                     <div>
                         <h4 className="font-bold text-gray-700 mb-2">Anotações e Solicitações</h4>
                         <div>
@@ -413,19 +403,18 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                 value={formData.annotations || ''} 
                                 onChange={handleChange} 
                                 className={`${inputClass} min-h-[100px]`} 
-                                placeholder="Adicione observações, solicitações do cliente, ou informações de contato importantes..."
+                                placeholder="Adicione observações..."
                             />
                         </div>
                     </div>
                     </fieldset>
                     <hr/>
-                    {/* Login and Actions Section */}
                     <div>
                         <h4 className="font-bold text-gray-700 mb-2">Acesso e Ações Rápidas</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                             <div>
                                 <label className={labelClass}>Login</label>
-                                <p className="text-sm text-gray-600 mt-1">O cliente acessa com o CPF (<span className="font-semibold">{formData.cpf}</span>) ou Telefone (<span className="font-semibold">{formData.phone}</span>).</p>
+                                <p className="text-sm text-gray-600 mt-1">O cliente acessa com o CPF (<span className="font-semibold">{formData.cpf}</span>).</p>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className={labelClass}>Ações</label>
@@ -449,7 +438,6 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                         </div>
                     </div>
                     <hr/>
-                    {/* Dependents Section */}
                     <div>
                         <div className="flex justify-between items-center mb-2">
                             <h4 className="font-bold text-gray-700">Dependentes</h4>
@@ -462,13 +450,9 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                         <div className="flex-1">
                                             <p className="font-medium text-gray-800">{dep.name}</p>
                                             <p className="text-sm text-gray-500">{dep.relationship} - CPF: {dep.cpf}</p>
-                                            <p className="text-xs text-gray-400">Nasc: {new Date(dep.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             {getDependentStatusChip(dep.status)}
-                                            {dependentActionLoading === dep.id && <div className="w-5 h-5"><Spinner /></div>}
-                                            
-                                            {/* Card View Button for Dependent */}
                                             {dep.status === 'active' && (
                                                 <button 
                                                     type="button" 
@@ -479,34 +463,17 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                                     <IdCardIcon />
                                                 </button>
                                             )}
-
-                                            {/* Edit Button */}
-                                            {dependentActionLoading !== dep.id && (
-                                                <button 
-                                                    type="button" 
-                                                    onClick={() => setDependentToEdit(dep)}
-                                                    className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
-                                                    title="Editar Dependente"
-                                                >
-                                                    <PencilIcon />
-                                                </button>
-                                            )}
-
-                                            {dep.status === 'pending' && dependentActionLoading !== dep.id && (
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setDependentToEdit(dep)}
+                                                className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                                            >
+                                                <PencilIcon />
+                                            </button>
+                                            {dep.status === 'pending' && (
                                                 <>
-                                                    <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-green-500 text-white font-bold py-1 px-2 rounded-full hover:bg-green-600">Aprovar</button>
-                                                    <button type="button" onClick={() => handleDependentAction('reject', dep.id)} className="text-xs bg-red-500 text-white font-bold py-1 px-2 rounded-full hover:bg-red-600">Rejeitar</button>
+                                                    <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-green-500 text-white font-bold py-1 px-2 rounded-full">Aprovar</button>
                                                 </>
-                                            )}
-                                            {dep.status === 'active' && dependentActionLoading !== dep.id && (
-                                                <button type="button" onClick={() => handleDependentAction('inactivate', dep.id)} className="text-xs bg-gray-500 text-white font-bold py-1 px-2 rounded-full hover:bg-gray-600">Inativar</button>
-                                            )}
-                                            {dep.status === 'inactive' && dependentActionLoading !== dep.id && (
-                                                <button type="button" onClick={() => handleDependentAction('reactivate', dep.id)} className="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded-full hover:bg-blue-600">Reativar</button>
-                                            )}
-                                            {/* Reconsider Button for Rejected Dependents */}
-                                            {dep.status === 'rejected' && dependentActionLoading !== dep.id && (
-                                                <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded-full hover:bg-blue-600">Reconsiderar</button>
                                             )}
                                         </div>
                                     </li>
@@ -525,26 +492,23 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         </div>
 
         <div className="flex justify-between items-center pt-4 border-t mt-4">
-            <div>
-                 <button
-                    type="button"
-                    onClick={() => onShowGenerationResult(client)}
-                    className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors text-sm"
-                    disabled={isFormSaving}
-                >
-                    Gerar Contrato e Cartões
-                </button>
-            </div>
+            <button
+                type="button"
+                onClick={() => onShowGenerationResult(client)}
+                className="bg-ds-dourado text-ds-vinho font-bold py-2 px-4 rounded-full hover:bg-opacity-90 transition-colors text-sm"
+            >
+                Gerar Contrato e Cartões
+            </button>
             <div className="flex space-x-3">
-                <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isFormSaving}>
+                <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300">
                     Fechar
                 </button>
                 {activeTab === 'data' && (
                      <button 
                         type="submit" 
                         form="client-detail-form"
-                        className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75 disabled:cursor-not-allowed" 
-                        disabled={isFormSaving || !!dependentActionLoading}
+                        className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75" 
+                        disabled={isFormSaving}
                     >
                         {isFormSaving && <ButtonSpinner />}
                         {isFormSaving ? 'Salvando...' : 'Salvar Alterações'}
@@ -552,7 +516,6 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                 )}
             </div>
         </div>
-      
     </Modal>
     
     <Modal
@@ -561,20 +524,10 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         title="Confirmar Reset de Senha"
       >
         <div className="space-y-4">
-          <p className="text-gray-700">
-            Você tem certeza que deseja resetar a senha para o cliente <span className="font-bold">{client.name}</span>?
-          </p>
-          <p className="text-sm bg-yellow-100 text-yellow-800 p-3 rounded-md">
-            A nova senha será os <code className="font-bold">4 últimos dígitos do CPF</code>. Por favor, informe o cliente sobre a alteração.
-          </p>
-          <div className="flex justify-end space-x-3 pt-2">
-            <button type="button" onClick={() => setIsResetPasswordModalOpen(false)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isResettingPassword}>
-              Cancelar
-            </button>
-            <button type="button" onClick={handleConfirmPasswordReset} className="bg-red-600 text-white font-bold py-2 px-4 rounded-full hover:bg-red-700 flex items-center disabled:opacity-75" disabled={isResettingPassword}>
-              {isResettingPassword && <ButtonSpinner />}
-              {isResettingPassword ? 'Resetando...' : 'Sim, Resetar Senha'}
-            </button>
+          <p className="text-gray-700">Deseja resetar a senha para o cliente <span className="font-bold">{client.name}</span>?</p>
+          <div className="flex justify-end space-x-3">
+            <button type="button" onClick={() => setIsResetPasswordModalOpen(false)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full">Cancelar</button>
+            <button type="button" onClick={handleConfirmPasswordReset} className="bg-red-600 text-white font-bold py-2 px-4 rounded-full">Resetar</button>
           </div>
         </div>
     </Modal>
@@ -596,37 +549,17 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         />
     )}
 
-    {/* Single Card Viewer Modal */}
     {cardViewerData && (
         <Modal isOpen={!!cardViewerData} onClose={() => setCardViewerData(null)} title={`Cartão: ${cardViewerData.name.split(' ')[0]}`}>
-            <div className="flex justify-center items-center bg-gray-200 p-4 rounded-xl border border-gray-300 mb-4">
-                <div id="admin-single-card-capture" className="w-full max-w-[520px] p-4 bg-transparent flex justify-center">
-                    <IdCardView 
-                        name={cardViewerData.name} 
-                        role={cardViewerData.role} 
-                        cardNumber="528753" 
-                        holderName={cardViewerData.holderName} 
-                    />
-                </div>
+            <div className="flex justify-center items-center bg-gray-200 p-4 rounded-xl mb-4">
+                <IdCardView 
+                    name={cardViewerData.name} 
+                    role={cardViewerData.role} 
+                    cardNumber="528753" 
+                    holderName={cardViewerData.holderName} 
+                />
             </div>
-            <div className="flex gap-3">
-                <button 
-                    onClick={() => processCardAction('share')} 
-                    className="flex-1 bg-green-500 text-white font-bold py-3 px-4 rounded-xl hover:bg-green-600 shadow-md flex items-center justify-center gap-2"
-                    disabled={isCardProcessing}
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                    {isCardProcessing ? '...' : 'Compartilhar'}
-                </button>
-                <button 
-                    onClick={() => processCardAction('download')} 
-                    className="flex-1 bg-ds-vinho text-white font-bold py-3 px-4 rounded-xl hover:bg-opacity-90 shadow-md flex items-center justify-center gap-2"
-                    disabled={isCardProcessing}
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    {isCardProcessing ? '...' : 'Baixar'}
-                </button>
-            </div>
+            <button onClick={() => setCardViewerData(null)} className="w-full bg-ds-vinho text-white font-bold py-2 rounded-full">Fechar</button>
         </Modal>
     )}
     </>
