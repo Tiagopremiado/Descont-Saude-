@@ -7,7 +7,7 @@ interface AddDependentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddDependent: (dependent: Omit<Dependent, 'id'>) => Promise<void>;
-  client: Client; // Adicionado para saber para quem enviar o zap
+  client: Client;
 }
 
 const ButtonSpinner = () => (
@@ -47,7 +47,6 @@ const AddDependentModal: React.FC<AddDependentModalProps> = ({ isOpen, onClose, 
         };
         await onAddDependent(depData);
         setLastAdded({ name, cpf });
-        // Não fechamos o modal imediatamente para mostrar o botão de WhatsApp
       } catch (error) {
         console.error("Error adding dependent", error);
         alert("Erro ao adicionar dependente.");
@@ -70,7 +69,7 @@ const AddDependentModal: React.FC<AddDependentModalProps> = ({ isOpen, onClose, 
     const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
     
     window.open(url, '_blank');
-    handleClose(); // Fecha após enviar
+    handleClose();
   };
   
   const handleClose = () => {
