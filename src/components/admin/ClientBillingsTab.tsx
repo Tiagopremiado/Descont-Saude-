@@ -30,6 +30,7 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     
+    // Multi-selection state
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
     
@@ -162,8 +163,9 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
         }
     };
 
+    // --- Multi-selection Handlers ---
     const toggleSelectAll = () => {
-        if (selectedIds.size === payments.length) {
+        if (selectedIds.size === payments.length && payments.length > 0) {
             setSelectedIds(new Set());
         } else {
             setSelectedIds(new Set(payments.map(p => p.id)));
