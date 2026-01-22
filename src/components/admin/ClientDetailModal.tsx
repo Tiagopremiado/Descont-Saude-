@@ -29,7 +29,7 @@ const ButtonSpinner = () => (
 
 const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241z"/>
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.459l-6.554 1.73zM7.51 21.683l.341-.188c1.643-.906 3.518-1.391 5.472-1.391 5.433 0 9.875-4.442 9.875-9.875 0-5.433-4.442-9.875-9.875-9.875s-9.875 4.442-9.875 9.875c0 2.12.67 4.108 1.868 5.768l-.24 1.125 1.196.241zM12 6.422c.433 0 .78.347.78.78s-.347.78-.78.78a.78.78 0 010-1.56zm-.001 4.29c.433 0 .78.347.78.78s-.347.78-.78.78a.78.78 0 010-1.56zm0 2.894c.433 0 .78.347.78.78s-.347.78-.78.78a.78.78 0 010-1.56z"/>
     </svg>
 );
 
@@ -216,11 +216,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         active: 'bg-green-100 text-green-800',
         pending: 'bg-yellow-100 text-yellow-800',
         inactive: 'bg-gray-100 text-gray-800',
+        rejected: 'bg-red-100 text-red-800'
     };
     const text = {
         active: 'Ativo',
         pending: 'Pendente',
-        inactive: 'Inativo'
+        inactive: 'Inativo',
+        rejected: 'Rejeitado'
     }
     return <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${styles[status]}`}>{text[status]}</span>
   }
@@ -502,6 +504,10 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
                                             {dep.status === 'inactive' && dependentActionLoading !== dep.id && (
                                                 <button type="button" onClick={() => handleDependentAction('reactivate', dep.id)} className="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded-full hover:bg-blue-600">Reativar</button>
                                             )}
+                                            {/* Reconsider Button for Rejected Dependents */}
+                                            {dep.status === 'rejected' && dependentActionLoading !== dep.id && (
+                                                <button type="button" onClick={() => handleDependentAction('approve', dep.id)} className="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded-full hover:bg-blue-600">Reconsiderar</button>
+                                            )}
                                         </div>
                                     </li>
                                 ))}
@@ -577,6 +583,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, onClose, 
         isOpen={isAddDependentModalOpen}
         onClose={() => setIsAddDependentModalOpen(false)}
         onAddDependent={handleAddDependent}
+        client={formData}
     />
 
     {dependentToEdit && (
