@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import type { Client, Payment } from '../../types';
 import { getPaymentsByClientId, generateNewInvoice, updatePaymentStatus, generateAnnualCarnet, deletePayment, updatePayment } from '../../services/apiService';
 import Spinner from '../common/Spinner';
@@ -29,11 +30,9 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     
-    // Multi-selection state
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
     
-    // Single Invoice State
     const [newInvoiceMonth, setNewInvoiceMonth] = useState('');
     const [newInvoiceYear, setNewInvoiceYear] = useState(new Date().getFullYear());
     const [newInvoiceAmount, setNewInvoiceAmount] = useState<string>(client.monthlyFee?.toFixed(2) || '0.00');
@@ -43,7 +42,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
     const [newInvoiceInterestPercent, setNewInvoiceInterestPercent] = useState<string>('1.00');
     const [isGenerating, setIsGenerating] = useState(false);
     
-    // Carnet State
     const [carnetYear, setCarnetYear] = useState(new Date().getFullYear() + 1);
     const [carnetAmount, setCarnetAmount] = useState<string>(client.monthlyFee?.toFixed(2) || '0.00');
     const [carnetDueDay, setCarnetDueDay] = useState<string>(String(client.paymentDueDateDay || 20));
@@ -53,7 +51,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
     const [carnetInterestPercent, setCarnetInterestPercent] = useState<string>('1.00');
     const [isGeneratingCarnet, setIsGeneratingCarnet] = useState(false);
 
-    // Edit Modal States
     const [paymentToEdit, setPaymentToEdit] = useState<Payment | null>(null);
     const [editAmount, setEditAmount] = useState<string>('');
     const [editObservation, setEditObservation] = useState('');
@@ -73,9 +70,7 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
 
     useEffect(() => {
         fetchPayments();
-        // Reset multi-selection when client changes
         setSelectedIds(new Set());
-        // Reset defaults when client changes
         setNewInvoiceAmount(client.monthlyFee?.toFixed(2) || '0.00');
         setCarnetAmount(client.monthlyFee?.toFixed(2) || '0.00');
         setCarnetDueDay(String(client.paymentDueDateDay || 20));
@@ -86,7 +81,7 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
         try {
             const updatedPayment = await updatePaymentStatus(paymentId, newStatus);
             if (updatedPayment) {
-                setPayments(prev => prev.map(p => p.id === paymentId ? updatedPayment : p));
+                setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status: newStatus } : p));
             }
         } catch (error) {
             console.error("Failed to update status", error);
@@ -156,7 +151,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
         try {
             await deletePayment(paymentId);
             setPayments(prev => prev.filter(p => p.id !== paymentId));
-            // Remove from selected if it was there
             const newSelected = new Set(selectedIds);
             newSelected.delete(paymentId);
             setSelectedIds(newSelected);
@@ -168,7 +162,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
         }
     };
 
-    // --- Multi-selection Handlers ---
     const toggleSelectAll = () => {
         if (selectedIds.size === payments.length) {
             setSelectedIds(new Set());
@@ -197,7 +190,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
 
         setIsBulkProcessing(true);
         try {
-            // FIX: Explicitly cast Array.from(selectedIds) to string[] to resolve the "unknown" type issue when using catch(error) in strict TS mode
             const idsToDelete = Array.from(selectedIds) as string[];
             for (const id of idsToDelete) {
                 await deletePayment(id);
@@ -207,7 +199,7 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
             await fetchPayments();
         } catch (error) {
             console.error("Bulk delete failed", error);
-            alert("Erro ao processar exclusão em massa. Algumas faturas podem não ter sido apagadas.");
+            alert("Erro ao processar exclusão em massa.");
             await fetchPayments();
         } finally {
             setIsBulkProcessing(false);
@@ -222,21 +214,20 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
 
     const handleSaveEdit = async () => {
         if (!paymentToEdit) return;
-        
         const finalAmount = parseFloat(editAmount) || 0;
-
         if (finalAmount <= 0) {
             alert("O valor total deve ser maior que zero.");
             return;
         }
-
         setIsSavingEdit(true);
         try {
             const updated = await updatePayment(paymentToEdit.id, { 
                 amount: finalAmount,
                 observation: editObservation
             });
-            setPayments(prev => prev.map(p => p.id === paymentToEdit.id ? updated : p));
+            if (updated) {
+                setPayments(prev => prev.map(p => p.id === paymentToEdit.id ? { ...p, amount: finalAmount, observation: editObservation } : p));
+            }
             setPaymentToEdit(null);
         } catch (error) {
             console.error("Error updating payment", error);
@@ -255,15 +246,13 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
         }
     };
 
-    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const monthsList = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const inputClass = "bg-white text-gray-900 mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-ds-dourado focus:border-ds-dourado text-sm";
     const labelClass = "block text-xs font-medium text-gray-700";
 
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* SINGLE INVOICE FORM */}
                 <form onSubmit={handleGenerateInvoice} className="p-4 bg-gray-50 rounded-lg border shadow-sm">
                     <h4 className="font-bold text-ds-vinho mb-3 border-b pb-2">Gerar Mensalidade Individual</h4>
                     <div className="space-y-3">
@@ -272,7 +261,7 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                                 <label className={labelClass}>Mês</label>
                                 <select value={newInvoiceMonth} onChange={e => setNewInvoiceMonth(e.target.value)} required className={inputClass}>
                                     <option value="">Selecione...</option>
-                                    {months.map(m => <option key={m} value={m}>{m}</option>)}
+                                    {monthsList.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
                             </div>
                             <div>
@@ -290,16 +279,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                                 <input type="date" value={newInvoiceDueDate} onChange={e => setNewInvoiceDueDate(e.target.value)} className={inputClass} />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className={labelClass}>Multa (%)</label>
-                                <input type="number" step="0.01" value={newInvoiceFinePercent} onChange={e => setNewInvoiceFinePercent(e.target.value)} className={inputClass} />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Juros Mensais (%)</label>
-                                <input type="number" step="0.01" value={newInvoiceInterestPercent} onChange={e => setNewInvoiceInterestPercent(e.target.value)} className={inputClass} />
-                            </div>
-                        </div>
                         <div>
                             <label className={labelClass}>Observação</label>
                             <input type="text" value={newInvoiceObservation} onChange={e => setNewInvoiceObservation(e.target.value)} placeholder="Ex: Acordo especial" className={inputClass} />
@@ -310,7 +289,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                     </div>
                 </form>
 
-                {/* CARNET FORM */}
                  <form onSubmit={handleGenerateCarnet} className="p-4 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
                     <h4 className="font-bold text-blue-900 mb-3 border-b border-blue-200 pb-2">Gerar Carnê (Lote)</h4>
                     <div className="space-y-3">
@@ -322,7 +300,7 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                             <div>
                                 <label className={labelClass}>Mês Inicial</label>
                                 <select value={carnetStartMonth} onChange={e => setCarnetStartMonth(e.target.value)} required className={inputClass}>
-                                    {months.map(m => <option key={m} value={m}>{m}</option>)}
+                                    {monthsList.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -334,16 +312,6 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                             <div>
                                 <label className={labelClass}>Dia Vencimento</label>
                                 <input type="number" min="1" max="31" value={carnetDueDay} onChange={e => setCarnetDueDay(e.target.value)} required className={inputClass} />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className={labelClass}>Multa (%)</label>
-                                <input type="number" step="0.01" value={carnetFinePercent} onChange={e => setCarnetFinePercent(e.target.value)} className={inputClass} />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Juros Mensais (%)</label>
-                                <input type="number" step="0.01" value={carnetInterestPercent} onChange={e => setCarnetInterestPercent(e.target.value)} className={inputClass} />
                             </div>
                         </div>
                         <div>
@@ -360,25 +328,13 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
             <div>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                     <h4 className="font-semibold text-gray-800">Histórico de Pagamentos</h4>
-                    
-                    {/* Bulk Action Bar */}
                     {selectedIds.size > 0 && (
                         <div className="flex items-center gap-3 bg-red-50 p-2 px-4 rounded-lg border border-red-200 animate-fade-in">
                             <span className="text-sm font-bold text-red-700">{selectedIds.size} faturas selecionadas</span>
-                            <button 
-                                onClick={handleBulkDelete}
-                                disabled={isBulkProcessing}
-                                className="bg-red-600 text-white text-xs font-bold py-1.5 px-3 rounded hover:bg-red-700 flex items-center gap-1 transition-colors"
-                            >
-                                {isBulkProcessing ? <Spinner /> : <TrashIcon />}
-                                {isBulkProcessing ? 'Apagando...' : 'Apagar Selecionados'}
+                            <button onClick={handleBulkDelete} disabled={isBulkProcessing} className="bg-red-600 text-white text-xs font-bold py-1.5 px-3 rounded hover:bg-red-700 flex items-center gap-1 transition-colors">
+                                {isBulkProcessing ? <Spinner /> : <TrashIcon />} {isBulkProcessing ? 'Apagando...' : 'Apagar Selecionados'}
                             </button>
-                            <button 
-                                onClick={() => setSelectedIds(new Set())}
-                                className="text-gray-500 hover:text-gray-700 text-xs font-bold"
-                            >
-                                Cancelar
-                            </button>
+                            <button onClick={() => setSelectedIds(new Set())} className="text-gray-500 hover:text-gray-700 text-xs font-bold">Cancelar</button>
                         </div>
                     )}
                 </div>
@@ -389,12 +345,7 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                              <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
                                     <th className="px-4 py-2 text-left w-10">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={payments.length > 0 && selectedIds.size === payments.length}
-                                            onChange={toggleSelectAll}
-                                            className="h-4 w-4 rounded text-ds-vinho focus:ring-ds-dourado cursor-pointer"
-                                        />
+                                        <input type="checkbox" checked={payments.length > 0 && selectedIds.size === payments.length} onChange={toggleSelectAll} className="h-4 w-4 rounded text-ds-vinho focus:ring-ds-dourado cursor-pointer" />
                                     </th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referência</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vencimento</th>
@@ -408,29 +359,15 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                                 {payments.map(payment => (
                                     <tr key={payment.id} className={`${selectedIds.has(payment.id) ? 'bg-ds-vinho/5' : 'hover:bg-gray-50'}`}>
                                         <td className="px-4 py-2">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedIds.has(payment.id)}
-                                                onChange={() => toggleSelectOne(payment.id)}
-                                                className="h-4 w-4 rounded text-ds-vinho focus:ring-ds-dourado cursor-pointer"
-                                            />
+                                            <input type="checkbox" checked={selectedIds.has(payment.id)} onChange={() => toggleSelectOne(payment.id)} className="h-4 w-4 rounded text-ds-vinho focus:ring-ds-dourado cursor-pointer" />
                                         </td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{payment.month} {payment.year}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{new Date(payment.dueDate).toLocaleDateString('pt-BR')}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">R$ {payment.amount.toFixed(2)}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-500 max-w-[150px] truncate" title={payment.observation}>{payment.observation || '-'}</td>
                                         <td className="px-4 py-2 whitespace-nowrap">
-                                            {isUpdating === payment.id ? (
-                                                <div className="flex justify-center items-center h-full w-24">
-                                                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-ds-vinho"></div>
-                                                </div>
-                                            ) : (
-                                                <select
-                                                    value={payment.status}
-                                                    onChange={(e) => handleStatusChange(payment.id, e.target.value as Payment['status'])}
-                                                    className={`w-28 p-1 border rounded-md text-xs font-semibold focus:ring-ds-dourado focus:border-ds-dourado ${getStatusStyles(payment.status)}`}
-                                                    aria-label={`Status do pagamento de ${payment.month}`}
-                                                >
+                                            {isUpdating === payment.id ? <div className="flex justify-center items-center h-full w-24"><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-ds-vinho"></div></div> : (
+                                                <select value={payment.status} onChange={(e) => handleStatusChange(payment.id, e.target.value as Payment['status'])} className={`w-28 p-1 border rounded-md text-xs font-semibold focus:ring-ds-dourado focus:border-ds-dourado ${getStatusStyles(payment.status)}`}>
                                                     <option value="paid">Pago</option>
                                                     <option value="pending">Pendente</option>
                                                     <option value="overdue">Vencido</option>
@@ -438,21 +375,8 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                                             )}
                                         </td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800 flex items-center gap-2">
-                                            <button 
-                                                onClick={() => openEditModal(payment)} 
-                                                className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" 
-                                                title="Editar Valor / Obs"
-                                            >
-                                                <PencilIcon />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(payment.id)} 
-                                                className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" 
-                                                title="Apagar Mensalidade"
-                                                disabled={isDeleting === payment.id}
-                                            >
-                                                {isDeleting === payment.id ? <ButtonSpinner /> : <TrashIcon />}
-                                            </button>
+                                            <button onClick={() => openEditModal(payment)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Editar Valor / Obs"><PencilIcon /></button>
+                                            <button onClick={() => handleDelete(payment.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Apagar Mensalidade" disabled={isDeleting === payment.id}>{isDeleting === payment.id ? <ButtonSpinner /> : <TrashIcon />}</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -463,51 +387,21 @@ const ClientBillingsTab: React.FC<{ client: Client }> = ({ client }) => {
                 )}
             </div>
 
-            {/* Modal de Edição de Valor / Obs */}
             {paymentToEdit && (
                 <Modal isOpen={!!paymentToEdit} onClose={() => setPaymentToEdit(null)} title="Editar Detalhes">
                     <div className="space-y-4">
-                        <div className="bg-yellow-50 p-3 rounded text-sm text-yellow-800 border border-yellow-200">
-                            Editando: <strong>{paymentToEdit.month}/{paymentToEdit.year}</strong>
-                        </div>
-
+                        <div className="bg-yellow-50 p-3 rounded text-sm text-yellow-800 border border-yellow-200">Editando: <strong>{paymentToEdit.month}/{paymentToEdit.year}</strong></div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Valor Base</label>
-                            <input 
-                                type="number" 
-                                step="0.01" 
-                                value={editAmount} 
-                                onChange={(e) => setEditAmount(e.target.value)} 
-                                className={inputClass} 
-                            />
+                            <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className={inputClass} />
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Observação</label>
-                            <input 
-                                type="text" 
-                                value={editObservation} 
-                                onChange={(e) => setEditObservation(e.target.value)} 
-                                className={inputClass} 
-                            />
+                            <input type="text" value={editObservation} onChange={(e) => setEditObservation(e.target.value)} className={inputClass} />
                         </div>
-
                         <div className="flex justify-end gap-3 pt-4">
-                            <button 
-                                onClick={() => setPaymentToEdit(null)} 
-                                className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300"
-                                disabled={isSavingEdit}
-                            >
-                                Cancelar
-                            </button>
-                            <button 
-                                onClick={handleSaveEdit} 
-                                className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75"
-                                disabled={isSavingEdit}
-                            >
-                                {isSavingEdit && <ButtonSpinner />}
-                                Salvar
-                            </button>
+                            <button onClick={() => setPaymentToEdit(null)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300" disabled={isSavingEdit}>Cancelar</button>
+                            <button onClick={handleSaveEdit} className="bg-ds-vinho text-white font-bold py-2 px-4 rounded-full hover:bg-opacity-90 flex items-center disabled:opacity-75" disabled={isSavingEdit}>{isSavingEdit && <ButtonSpinner />} Salvar</button>
                         </div>
                     </div>
                 </Modal>
