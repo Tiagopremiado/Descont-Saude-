@@ -1,6 +1,5 @@
-
 import { supabase } from '../supabase';
-import type { 
+import { 
     Client, Dependent, Payment, Doctor, Rating, ServiceHistoryItem, Reminder, 
     UpdateApprovalRequest, PlanConfig, CourierFinancialRecord, AppNotification 
 } from '../types';
@@ -484,6 +483,7 @@ export const deletePendingRequestByClientId = async (clientId: string) => {
 
 export const getPlanConfig = async (): Promise<PlanConfig> => {
     const { data } = await supabase.from('plan_config').select('*').single();
+    // FIX: Replaced snake_case properties with camelCase to match the PlanConfig interface.
     return data ? {
         individualPrice: data.individual_price, familySmallPrice: data.family_small_price, familyMediumPrice: data.family_medium_price,
         familyLargePrice: data.family_large_price, extraDependentPrice: data.extra_dependent_price, finePercentage: data.fine_percentage, interestPercentage: data.interest_percentage
@@ -491,6 +491,7 @@ export const getPlanConfig = async (): Promise<PlanConfig> => {
 };
 
 export const updatePlanConfig = async (c: PlanConfig) => {
+    // FIX: Replaced camelCase properties with snake_case for the database payload.
     const db = {
         individual_price: c.individualPrice, family_small_price: c.familySmallPrice, family_medium_price: c.familyMediumPrice,
         family_large_price: c.familyLargePrice, extra_dependent_price: c.extraDependentPrice, fine_percentage: c.finePercentage, interest_percentage: c.interestPercentage
